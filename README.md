@@ -1,6 +1,6 @@
 # MapParser
 
-**MapParser** (formerly MapBridge) is a modern, beautiful web tool designed to bridge the gap between shared Google Maps routes and your personal Google My Maps. Use it to extract waypoints from directions links and export them for easy import into other tools.
+**MapParser** is a modern, beautiful web tool designed to bridge the gap between shared Google Maps routes and your personal Google My Maps. Use it to extract waypoints from directions links and export them for easy import into other tools.
 
 ## Features
 
