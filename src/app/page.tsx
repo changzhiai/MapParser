@@ -92,6 +92,7 @@ export default function Home() {
             "@type": "WebApplication",
             "name": "MapParser",
             "url": "https://mapparser.travel-tracker.org",
+            "creator": "Changzhi Ai",
             "applicationCategory": "UtilityApplication",
             "operatingSystem": "Any",
             "description": "Easily parse and export Google Maps routes to CSV, or KML. Visualize multiple routes and export for Google My Maps.",
