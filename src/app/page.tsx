@@ -108,7 +108,7 @@ export default function Home() {
           </div>
 
           <p className="subtitle">
-            Parse your shared Google Maps routes<br />
+            Parse your Google Maps routes<br />
           </p>
         </motion.div>
 
