@@ -1,5 +1,5 @@
 {
-  "name": "map-bridge",
+  "name": "map-parser",
   "version": "0.1.0",
   "private": true,
   "scripts": {
