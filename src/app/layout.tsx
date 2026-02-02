@@ -20,10 +20,13 @@ export const metadata: Metadata = {
     default: "MapParser | Parse Google Maps Routes",
     template: "%s | MapParser"
   },
+  alternates: {
+    canonical: 'https://mapparser.travel-tracker.org',
+  },
   description: "Easily parse and export Google Maps routes to CSV, or KML. Visualize multiple routes and export for Google My Maps.",
   keywords: ["Google Maps", "Route Parser", "Export KML", "Export CSV", "My Maps", "Map visualization", "Route Planner", "Navigation"],
   authors: [{ name: "MapParser Team" }],
-  creator: "MapParser",
+  creator: "Changzhi Ai",
   openGraph: {
     title: "MapParser | Parse Google Maps Routes",
     description: "Easily parse and export Google Maps routes to CSV, or KML. Visualize multiple routes and export for Google My Maps.",
