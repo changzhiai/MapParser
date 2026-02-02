@@ -63,7 +63,7 @@ pm2 save
 
 Create a new Nginx configuration file:
 ```bash
-sudo nano /etc/nginx/sites-available/mapparser.travel-tracker.org
+sudo nano /etc/nginx/sites-available/map-parser
 ```
 
 Paste the following configuration:
@@ -85,7 +85,7 @@ server {
 
 Enable the site:
 ```bash
-sudo ln -s /etc/nginx/sites-available/mapparser.travel-tracker.org /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/map-parser /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
