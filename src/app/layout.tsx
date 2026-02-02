@@ -8,8 +8,8 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "MapBridge | Transfer Shared Maps",
-  description: "Transfer Google Maps shared routes to your own My Maps easily.",
+  title: "MapParser | Parse Google Maps Routes",
+  description: "Parse Google Maps routes to your own My Maps easily.",
 };
 
 export default function RootLayout({
