@@ -21,7 +21,16 @@ const createAlphabetIcon = (index: number) => {
 
 // --- Map Controls & Logic --- //
 
-function MapController({ waypoints, mode, setMode, isFullscreen, setIsFullscreen }: any) {
+interface MapControllerProps {
+    waypoints: Waypoint[];
+    mode: string;
+    setMode: (mode: string) => void;
+    isFullscreen: boolean;
+    setIsFullscreen: (is: boolean) => void;
+    activeRoute?: [number, number][];
+}
+
+function MapController({ waypoints, mode, setMode, isFullscreen, setIsFullscreen }: MapControllerProps) {
     const map = useMap();
 
     // 1. Handle Resize & Bounds
@@ -155,7 +164,10 @@ export default function MapView({ waypoints }: MapViewProps) {
     // Fetch Route Effect
     useEffect(() => {
         if (validPoints.length < 2) {
-            setRoutePath([]);
+            // Avoid synchronous state update in effect
+            if (routePath.length > 0) {
+                setTimeout(() => setRoutePath([]), 0);
+            }
             return;
         }
 
@@ -183,7 +195,7 @@ export default function MapView({ waypoints }: MapViewProps) {
         };
 
         fetchRoute();
-    }, [waypoints, mode]); // Re-run when waypoints or mode changes
+    }, [waypoints, mode, validPoints, routePath]); // Re-run when waypoints or mode changes
 
 
     // -- Render -- //

@@ -9,7 +9,7 @@ export function parseMapUrl(url: string): Waypoint[] {
         const path = urlObj.pathname;
 
         // 1. Extract Names from Path
-        let names: string[] = [];
+        const names: string[] = [];
 
         if (path.includes('/dir/')) {
             const parts = path.split('/dir/')[1];
@@ -21,8 +21,9 @@ export function parseMapUrl(url: string): Waypoint[] {
                 if (segment.startsWith('data=')) break;
                 if (segment.startsWith('am=')) break;
 
-                const decoded = decodeURIComponent(segment.replace(/\+/g, ' '));
-                names.push(decoded);
+                const decoded = decodeURIComponent(segment).replace(/\+/g, ' ');
+                const shortName = decoded.split(',')[0].trim();
+                names.push(shortName);
             }
         }
 

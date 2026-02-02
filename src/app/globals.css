@@ -439,3 +439,22 @@ a {
   margin-top: -1px;
   /* Slight adjustment for visual centering */
 }
+
+/* Title Row Layout */
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+
+.title-row .icon-wrapper {
+  margin-bottom: 0;
+  /* Keep original dims */
+}
+
+.title-row .title {
+  margin-bottom: 0;
+  line-height: 1;
+}

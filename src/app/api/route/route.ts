@@ -18,7 +18,7 @@ export async function POST(request: Request) {
         if (mode === 'bicycling' || mode === 'cycling') profile = 'cycling';
 
         // Format coordinates for OSRM: "lng,lat;lng,lat"
-        const coordString = coordinates.map((c: any) => `${c.lng},${c.lat}`).join(';');
+        const coordString = coordinates.map((c: { lat: number; lng: number }) => `${c.lng},${c.lat}`).join(';');
 
         // Use OSRM public demo server (Note: Rate limits apply, fine for demo)
         // For production, one should host their own OSRM or use Google Routes API
