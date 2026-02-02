@@ -84,6 +84,26 @@ export default function Home() {
 
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "MapParser",
+            "url": "https://mapparser.travel-tracker.org",
+            "applicationCategory": "UtilityApplication",
+            "operatingSystem": "Any",
+            "description": "Easily parse and export Google Maps routes to CSV, or KML. Visualize multiple routes and export for Google My Maps.",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "featureList": "Parse Google Maps URL, Export to KML, Export to CSV, Visualize Route"
+          })
+        }}
+      />
       <div className="background-glow">
         <div className="glow-blob glow-1" />
         <div className="glow-blob glow-2" />
