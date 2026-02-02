@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { generateCSV, generateKML, parseMapUrl, Waypoint } from '@/lib/map-parser';
-import { Map, ArrowRight, Loader2, CheckCircle, Navigation, AlertCircle, FileText, Globe } from 'lucide-react';
+import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
@@ -24,6 +24,7 @@ export default function Home() {
   const [error, setError] = useState('');
   const [analyzed, setAnalyzed] = useState(false);
   const [mapProvider, setMapProvider] = useState<'osm' | 'google'>('osm');
+  const [googleMapMode, setGoogleMapMode] = useState<'embed' | 'interactive'>('interactive');
 
   const handleAnalyze = async () => {
     if (!url) return;
@@ -48,8 +49,12 @@ export default function Home() {
 
       setWaypoints(points);
       setAnalyzed(true);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Something went wrong');
+      }
     } finally {
       setLoading(false);
     }
@@ -73,6 +78,10 @@ export default function Home() {
     ? waypoints.map((wp, i) => `${wp.name} (${String.fromCharCode(65 + i)})`).join(' → ')
     : '';
 
+  const googleMapsUrl = waypoints.length > 0
+    ? (url || `https://www.google.com/maps/dir/${waypoints.map(wp => wp.coords ? `${wp.coords.lat},${wp.coords.lng}` : '').filter(Boolean).join('/')}`)
+    : '#';
+
   return (
     <main>
       <div className="background-glow">
@@ -88,13 +97,15 @@ export default function Home() {
           transition={{ duration: 0.8 }}
           className="hero"
         >
-          <div className="icon-wrapper">
-            <Map className="w-10 h-10 text-indigo-400" size={40} color="#818cf8" />
-          </div>
+          <div className="title-row">
+            <div className="icon-wrapper">
+              <MapPinned className="w-10 h-10 text-indigo-400" size={40} color="#818cf8" />
+            </div>
 
-          <h1 className="title">
-            MapParser
-          </h1>
+            <h1 className="title">
+              Map Parser
+            </h1>
+          </div>
 
           <p className="subtitle">
             Parse your shared Google Maps routes<br />
@@ -107,7 +118,7 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
         >
-          <Navigation className="text-gray-400" size={20} />
+          <LinkIcon className="text-gray-400" size={20} />
           <input
             type="text"
             placeholder="e.g. https://maps.app.goo.gl/..."
@@ -196,7 +207,7 @@ export default function Home() {
                   <div className="steps-grid">
                     <div className="step-card">
                       <strong>1. Download CSV</strong>
-                      <p>Click "Download CSV" above. This file is formatted for Google My Maps.</p>
+                      <p>Click &quot;Download CSV&quot; above. This file is formatted for Google My Maps.</p>
                     </div>
                     <div className="step-card">
                       <strong>2. Go to My Maps</strong>
@@ -204,7 +215,7 @@ export default function Home() {
                     </div>
                     <div className="step-card">
                       <strong>3. Import</strong>
-                      <p>Click "Import" in the map legend and upload the CSV file.</p>
+                      <p>Click &quot;Import&quot; in the map legend and upload the CSV file.</p>
                     </div>
                   </div>
                 </div>
@@ -249,7 +260,31 @@ export default function Home() {
                 {mapProvider === 'osm' ? (
                   <MapView waypoints={waypoints} />
                 ) : (
-                  <GoogleMapView waypoints={waypoints} />
+                  <GoogleMapView
+                    waypoints={waypoints}
+                    url={url}
+                    mode={googleMapMode}
+                    onModeChange={setGoogleMapMode}
+                  />
+                )}
+
+                {mapProvider === 'google' && (
+                  <div className="flex items-center justify-between w-full">
+                    <button
+                      type="button"
+                      onClick={() => setGoogleMapMode(googleMapMode === 'embed' ? 'interactive' : 'embed')}
+                      className="bg-black/50 hover:bg-black/70 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-md border border-white/20 transition-all font-medium shadow-sm"
+                    >
+                      {googleMapMode === 'embed' ? 'Switch to Interactive' : 'Show Embed View'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => window.open(googleMapsUrl, '_blank', 'noopener,noreferrer')}
+                      className="bg-white hover:bg-gray-100 text-black text-xs px-4 py-2 rounded-full font-bold shadow-lg border border-gray-200 flex items-center gap-2 transition-all whitespace-nowrap shrink-0"
+                    >
+                      Open on Google Maps
+                    </button>
+                  </div>
                 )}
 
                 <p className="text-gray-300 mt-6 leading-relaxed font-light text-lg border-t border-white/10 pt-4">

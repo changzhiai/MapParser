@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, DirectionsRenderer, Polyline, Marker } from '@react-google-maps/api';
 import { Waypoint } from '@/lib/map-parser';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
@@ -90,56 +90,160 @@ const mapOptions = {
 
 interface GoogleMapViewProps {
     waypoints: Waypoint[];
+    url?: string;
+    /** When provided with onModeChange, mode is controlled by parent (no overlay button). */
+    mode?: 'embed' | 'interactive';
+    onModeChange?: (mode: 'embed' | 'interactive') => void;
 }
 
-export default function GoogleMapView({ waypoints }: GoogleMapViewProps) {
-    // Try to get key from env. If not found, show warning.
+// Helper to Split Waypoints into chunks
+// CHUNK_SIZE moved into effect
+
+export default function GoogleMapView({ waypoints, url, mode: controlledMode, onModeChange }: GoogleMapViewProps) {
     const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+    const [internalMode, setInternalMode] = useState<'interactive' | 'embed'>('interactive');
+    const isControlled = controlledMode !== undefined && onModeChange !== undefined;
+    const mode = isControlled ? controlledMode : internalMode;
+    const setMode = isControlled ? onModeChange : setInternalMode;
+    const [embedUrl, setEmbedUrl] = useState('');
+
+    useEffect(() => {
+        // Construct Embed URL
+        if (waypoints.length >= 2 && API_KEY) {
+            const origin = `${waypoints[0].coords?.lat},${waypoints[0].coords?.lng}`;
+            const destination = `${waypoints[waypoints.length - 1].coords?.lat},${waypoints[waypoints.length - 1].coords?.lng}`;
+
+            // Intermediates
+            const intermediates = waypoints.slice(1, -1)
+                .map(wp => wp.coords ? `${wp.coords.lat},${wp.coords.lng}` : '')
+                .filter(Boolean)
+                .join('|');
+
+            const newUrl = `https://www.google.com/maps/embed/v1/directions?key=${API_KEY}&origin=${origin}&destination=${destination}&waypoints=${intermediates}&mode=driving`;
+            setEmbedUrl(newUrl);
+        }
+    }, [waypoints, API_KEY]);
 
     const { isLoaded, loadError } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: API_KEY
     });
 
-    const [response, setResponse] = useState<google.maps.DirectionsResult | null>(null);
-    const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
-    const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
+    const [map, setMap] = useState<google.maps.Map | null>(null);
+    interface RouteSegment {
+        id: number;
+        status: 'loading' | 'success' | 'fallback' | 'error';
+        result?: google.maps.DirectionsResult;
+        path?: google.maps.LatLngLiteral[];
+    }
+    const [segments, setSegments] = useState<RouteSegment[]>([]);
 
-    // Re-calculate route when waypoints change
+    const onMapLoad = useCallback((mapInstance: google.maps.Map) => {
+        setMap(mapInstance);
+    }, []);
+
+    // 1. Fit Bounds when waypoints change
     useEffect(() => {
-        if (!isLoaded || !directionsService || waypoints.length < 2) return;
+        if (map && waypoints.length > 0) {
+            const bounds = new google.maps.LatLngBounds();
+            let hasPoints = false;
+            waypoints.forEach(wp => {
+                if (wp.coords) {
+                    bounds.extend(wp.coords);
+                    hasPoints = true;
+                }
+            });
+            if (hasPoints) {
+                map.fitBounds(bounds);
+            }
+        }
+    }, [map, waypoints]);
+
+    // 2. Calculate Route (Single Pass)
+    useEffect(() => {
+        if (!isLoaded || waypoints.length < 2) return;
+
+        setSegments([{ id: 0, status: 'loading' }]);
+
+        const ds = new google.maps.DirectionsService();
 
         const origin = waypoints[0].coords;
         const destination = waypoints[waypoints.length - 1].coords;
 
-        // Middle points
+        if (!origin || !destination) {
+            setSegments([{
+                id: 0,
+                status: 'fallback',
+                path: waypoints.map(c => c.coords).filter(Boolean) as google.maps.LatLngLiteral[]
+            }]);
+            return;
+        }
+
+        // Intermediates
         const waypts = waypoints.slice(1, -1).map(wp => ({
             location: wp.coords ? { lat: wp.coords.lat, lng: wp.coords.lng } : null,
             stopover: true
         })).filter(wp => wp.location !== null) as google.maps.DirectionsWaypoint[];
 
-        if (!origin || !destination) return;
+        // Calculate a safe "Summer" date to bypass winter road closures
+        const summerDate = new Date();
+        summerDate.setMonth(6); // July
+        summerDate.setDate(15);
+        if (summerDate < new Date()) {
+            summerDate.setFullYear(summerDate.getFullYear() + 1);
+        }
 
-        directionsService.route({
-            origin: { lat: origin.lat, lng: origin.lng },
-            destination: { lat: destination.lat, lng: destination.lng },
-            waypoints: waypts,
-            travelMode: google.maps.TravelMode.DRIVING
-        }, (result, status) => {
-            if (status === google.maps.DirectionsStatus.OK && result) {
-                setResponse(result);
-            } else {
-                console.error(`Directions request failed: ${status}`);
+        const fetchRoute = async (mode: google.maps.TravelMode): Promise<google.maps.DirectionsResult> => {
+            return new Promise((resolve, reject) => {
+                const request: google.maps.DirectionsRequest = {
+                    origin,
+                    destination,
+                    waypoints: waypts,
+                    travelMode: mode
+                };
+
+                // Add future date for Driving to avoid seasonal closures
+                if (mode === google.maps.TravelMode.DRIVING) {
+                    request.drivingOptions = {
+                        departureTime: summerDate,
+                        trafficModel: google.maps.TrafficModel.OPTIMISTIC
+                    };
+                }
+
+                ds.route(request, (result, status) => {
+                    if (status === google.maps.DirectionsStatus.OK && result) {
+                        resolve(result);
+                    } else {
+                        reject(status);
+                    }
+                });
+            });
+        };
+
+        const attemptRoute = async () => {
+            try {
+                // Try Driving
+                const result = await fetchRoute(google.maps.TravelMode.DRIVING);
+                setSegments([{ id: 0, status: 'success', result }]);
+            } catch {
+                try {
+                    // Try Walking
+                    const result = await fetchRoute(google.maps.TravelMode.WALKING);
+                    setSegments([{ id: 0, status: 'success', result }]);
+                } catch (e2: unknown) {
+                    console.error(`Route failed: ${e2}. Using fallback.`);
+                    setSegments([{
+                        id: 0,
+                        status: 'fallback',
+                        path: waypoints.map(c => c.coords).filter(Boolean) as google.maps.LatLngLiteral[]
+                    }]);
+                }
             }
-        });
+        };
 
-    }, [isLoaded, directionsService, waypoints]);
+        attemptRoute();
 
-    const onMapLoad = useCallback((map: google.maps.Map) => {
-        // Initialize services
-        const ds = new google.maps.DirectionsService();
-        setDirectionsService(ds);
-    }, []);
+    }, [isLoaded, waypoints]);
 
     if (!API_KEY) {
         return (
@@ -151,6 +255,22 @@ export default function GoogleMapView({ waypoints }: GoogleMapViewProps) {
                 </p>
             </div>
         )
+    }
+
+    // Render Embed View (no overlay; page renders controls)
+    if (mode === 'embed') {
+        return (
+            <div className="relative w-full h-[500px] rounded-xl overflow-hidden border border-white/10 shadow-xl z-0" style={{ height: '500px', width: '100%' }}>
+                <iframe
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    allowFullScreen
+                    src={embedUrl}
+                ></iframe>
+            </div>
+        );
     }
 
     if (loadError) {
@@ -174,13 +294,61 @@ export default function GoogleMapView({ waypoints }: GoogleMapViewProps) {
                 onLoad={onMapLoad}
                 options={mapOptions}
             >
-                {response && (
-                    <DirectionsRenderer
-                        options={{
-                            directions: response
-                        }}
-                    />
-                )}
+                {/* Render Segments */}
+                {segments.map(seg => {
+                    if (seg.status === 'success' && seg.result) {
+                        return (
+                            <DirectionsRenderer
+                                key={seg.id}
+                                options={{
+                                    directions: seg.result,
+                                    preserveViewport: true,
+                                    suppressMarkers: true, // We draw our own markers
+                                    polylineOptions: {
+                                        strokeColor: "#4285F4", // Google Blue
+                                        strokeWeight: 5
+                                    }
+                                }}
+                            />
+                        );
+                    } else if (seg.status === 'fallback' && seg.path) {
+                        return (
+                            <Polyline
+                                key={seg.id}
+                                path={seg.path}
+                                options={{
+                                    strokeColor: "#FF4444", // Red for direct lines
+                                    strokeOpacity: 0.7,
+                                    strokeWeight: 4,
+                                    geodesic: true,
+                                    icons: [{
+                                        icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
+                                        offset: '100%',
+                                        repeat: '100px'
+                                    }]
+                                }}
+                            />
+                        );
+                    }
+                    return null;
+                })}
+
+                {/* Render Custom Markers */}
+                {waypoints.map((wp, index) => (
+                    wp.coords && (
+                        <Marker
+                            key={index}
+                            position={wp.coords}
+                            label={{
+                                text: String.fromCharCode(65 + index),
+                                color: "white",
+                                fontWeight: "bold"
+                            }}
+                            title={wp.name}
+                        />
+                    )
+                ))}
+
             </GoogleMap>
         </div>
     )
