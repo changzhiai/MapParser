@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, ZoomControl }
 import 'leaflet/dist/leaflet.css';
 import { Waypoint } from '@/lib/map-parser';
 import L from 'leaflet';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Car, Bike, Footprints, Maximize2, Minimize2 } from 'lucide-react';
 
 // function to generate A, B, C... labels
@@ -157,16 +157,16 @@ export default function MapView({ waypoints }: MapViewProps) {
     }, [isFullscreen]);
 
     // Filtering
-    const validPoints = waypoints.filter(w =>
+    const validPoints = useMemo<Waypoint[]>(() => waypoints.filter((w: Waypoint) =>
         w.coords && !isNaN(w.coords.lat) && !isNaN(w.coords.lng)
-    );
+    ), [waypoints]);
 
     // Fetch Route Effect
     useEffect(() => {
         if (validPoints.length < 2) {
             // Avoid synchronous state update in effect
             if (routePath.length > 0) {
-                setTimeout(() => setRoutePath([]), 0);
+                setRoutePath([]);
             }
             return;
         }
@@ -195,7 +195,7 @@ export default function MapView({ waypoints }: MapViewProps) {
         };
 
         fetchRoute();
-    }, [waypoints, mode, validPoints, routePath]); // Re-run when waypoints or mode changes
+    }, [validPoints, mode]); // Re-run when waypoints or mode changes
 
 
     // -- Render -- //

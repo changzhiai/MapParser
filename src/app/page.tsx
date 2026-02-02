@@ -196,14 +196,15 @@ export default function Home() {
                   ))}
                 </div>
 
-                <p className="text-gray-300 mb-8 leading-relaxed font-light text-lg">
-                  Summary: {simpleRouteTitle}
-                </p>
-
-                <div className="h-[20px]" style={{ minHeight: '20px', display: 'block' }}></div>
+                <div className="summary-panel">
+                  <h3 className="instructions-title">Route Summary</h3>
+                  <p className="text-gray-300 mb-0 leading-relaxed font-light text-lg">
+                    {simpleRouteTitle}
+                  </p>
+                </div>
 
                 <div className="instructions">
-                  <h3 className="instructions-title">How to Transfer to Your Map</h3>
+                  <h3 className="instructions-title">Transfer to Your Own Google My Maps</h3>
                   <div className="steps-grid">
                     <div className="step-card">
                       <strong>1. Download CSV</strong>
