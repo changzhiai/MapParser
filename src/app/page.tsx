@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { generateCSV, generateKML, parseMapUrl, Waypoint } from '@/lib/map-parser';
 import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,6 +19,7 @@ const GoogleMapView = dynamic(() => import('@/components/GoogleMapView'), {
 });
 
 export default function Home() {
+  const searchParams = useSearchParams();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
@@ -26,8 +28,10 @@ export default function Home() {
   const [mapProvider, setMapProvider] = useState<'osm' | 'google'>('osm');
   const [googleMapMode, setGoogleMapMode] = useState<'embed' | 'interactive'>('interactive');
 
-  const handleAnalyze = async () => {
-    if (!url) return;
+  const handleAnalyze = async (urlOverride?: string, useBrowser: boolean = false) => {
+    const targetUrl = urlOverride || url;
+    if (!targetUrl) return;
+
     setLoading(true);
     setError('');
     setWaypoints([]);
@@ -35,7 +39,9 @@ export default function Home() {
 
     try {
       // 1. Resolve URL
-      const res = await fetch(`/api/resolve?url=${encodeURIComponent(url)}`);
+      // If useBrowser is true (deep link case), use Puppeteer mode. Otherwise default fast mode.
+      const apiUrl = `/api/resolve?url=${encodeURIComponent(targetUrl)}${useBrowser ? '&mode=browser' : ''}`;
+      const res = await fetch(apiUrl);
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || 'Failed to resolve URL');
@@ -48,6 +54,13 @@ export default function Home() {
       }
 
       setWaypoints(points);
+
+      // If we have names but no coordinates (e.g. from a raw directions link), switch to Google Maps 
+      // because OSM (Leaflet) requires coordinates, while Google Directions Service can geocode names.
+      if (points.length > 0 && !points.some(wp => wp.coords)) {
+        setMapProvider('google');
+      }
+
       setAnalyzed(true);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -59,6 +72,26 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const queryUrl = searchParams.get('url');
+    if (queryUrl) {
+      // Reconstruct the URL if it was split by unencoded characters (common issue with deep links)
+      let fullUrl = queryUrl;
+
+      // Assume any other query parameters belong to the target URL
+      searchParams.forEach((value, key) => {
+        if (key !== 'url') {
+          fullUrl += `&${key}=${value}`;
+        }
+      });
+
+      setUrl(fullUrl);
+
+      // DEEP LINK CASE: Use Browser (Puppeteer) mode to ensure detailed expansion
+      handleAnalyze(fullUrl, true);
+    }
+  }, [searchParams]);
 
   const downloadFile = (content: string, filename: string, type: string) => {
     const blob = new Blob([content], { type });
@@ -149,7 +182,7 @@ export default function Home() {
             onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
           />
           <button
-            onClick={handleAnalyze}
+            onClick={() => handleAnalyze()}
             disabled={loading || !url}
             className="btn-primary"
           >
@@ -259,53 +292,70 @@ export default function Home() {
                   </h2>
                 </div>
 
+                {waypoints.some(wp => wp.coords) ? (
+                  <>
+                    {/* Map Provider Toggle */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0rem' }}>
+                      <div className="flex bg-white/5 p-1 rounded-lg border border-white/10 w-fit">
+                        <button
+                          onClick={() => setMapProvider('osm')}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${mapProvider === 'osm' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          OpenStreetMap
+                        </button>
+                        <button
+                          onClick={() => setMapProvider('google')}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${mapProvider === 'google' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          Google Maps
+                        </button>
+                      </div>
+                    </div>
 
+                    {mapProvider === 'osm' ? (
+                      <MapView waypoints={waypoints} />
+                    ) : (
+                      <GoogleMapView
+                        waypoints={waypoints}
+                        url={url}
+                        mode={googleMapMode}
+                        onModeChange={setGoogleMapMode}
+                      />
+                    )}
 
-                {/* Map Provider Toggle */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0rem' }}>
-                  <div className="flex bg-white/5 p-1 rounded-lg border border-white/10 w-fit">
-                    <button
-                      onClick={() => setMapProvider('osm')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${mapProvider === 'osm' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                    >
-                      OpenStreetMap
-                    </button>
-                    <button
-                      onClick={() => setMapProvider('google')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${mapProvider === 'google' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                    >
-                      Google Maps
-                    </button>
-                  </div>
-                </div>
-
-                {mapProvider === 'osm' ? (
-                  <MapView waypoints={waypoints} />
+                    {mapProvider === 'google' && (
+                      <div className="flex items-center justify-between w-full">
+                        <button
+                          type="button"
+                          onClick={() => setGoogleMapMode(googleMapMode === 'embed' ? 'interactive' : 'embed')}
+                          className="bg-black/50 hover:bg-black/70 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-md border border-white/20 transition-all font-medium shadow-sm"
+                        >
+                          {googleMapMode === 'embed' ? 'Switch to Interactive' : 'Show Embed View'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => window.open(googleMapsUrl, '_blank', 'noopener,noreferrer')}
+                          className="bg-white hover:bg-gray-100 text-black text-xs px-4 py-2 rounded-full font-bold shadow-lg border border-gray-200 flex items-center gap-2 transition-all whitespace-nowrap shrink-0"
+                        >
+                          Open on Google Maps
+                        </button>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <GoogleMapView
-                    waypoints={waypoints}
-                    url={url}
-                    mode={googleMapMode}
-                    onModeChange={setGoogleMapMode}
-                  />
-                )}
-
-                {mapProvider === 'google' && (
-                  <div className="flex items-center justify-between w-full">
-                    <button
-                      type="button"
-                      onClick={() => setGoogleMapMode(googleMapMode === 'embed' ? 'interactive' : 'embed')}
-                      className="bg-black/50 hover:bg-black/70 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-md border border-white/20 transition-all font-medium shadow-sm"
-                    >
-                      {googleMapMode === 'embed' ? 'Switch to Interactive' : 'Show Embed View'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => window.open(googleMapsUrl, '_blank', 'noopener,noreferrer')}
-                      className="bg-white hover:bg-gray-100 text-black text-xs px-4 py-2 rounded-full font-bold shadow-lg border border-gray-200 flex items-center gap-2 transition-all whitespace-nowrap shrink-0"
-                    >
-                      Open on Google Maps
-                    </button>
+                  <div className="text-center py-12 flex flex-col items-center justify-center">
+                    <p className="text-gray-400 mb-6 max-w-md leading-relaxed">
+                      Route preview is unavailable! We could not extract exact coordinates from this link type. However, you can directly see the route on{' '}
+                      <a
+                        href={googleMapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="link"
+                      >
+                        Google Maps
+                      </a>
+                      .
+                    </p>
                   </div>
                 )}
 
@@ -316,7 +366,7 @@ export default function Home() {
             </div>
           )}
         </AnimatePresence>
-      </div>
+      </div >
     </main >
   );
 }
