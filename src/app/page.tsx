@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { generateCSV, generateKML, parseMapUrl, Waypoint } from '@/lib/map-parser';
 import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map } from 'lucide-react';
@@ -18,7 +18,7 @@ const GoogleMapView = dynamic(() => import('@/components/GoogleMapView'), {
   loading: () => <div className="w-full h-[500px] rounded-xl bg-white/5 animate-pulse flex items-center justify-center text-gray-400">Loading Google Maps...</div>
 });
 
-export default function Home() {
+function MapParserContent() {
   const searchParams = useSearchParams();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -368,5 +368,13 @@ export default function Home() {
         </AnimatePresence>
       </div >
     </main >
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-white">Loading...</div>}>
+      <MapParserContent />
+    </Suspense>
   );
 }
