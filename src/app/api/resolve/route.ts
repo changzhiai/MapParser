@@ -20,7 +20,9 @@ export async function GET(request: Request) {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-gpu'
+          '--disable-gpu',
+          '--disable-extensions',
+          '--mute-audio',
         ]
       });
 
@@ -30,7 +32,7 @@ export async function GET(request: Request) {
       // Vital: We MUST allow 'script' and 'xhr' for Google Maps to function
       await page.setRequestInterception(true);
       page.on('request', (req) => {
-        if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
+        if (['image', 'stylesheet', 'font', 'media', 'imageset'].includes(req.resourceType())) {
           req.abort();
         } else {
           req.continue();
