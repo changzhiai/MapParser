@@ -3,7 +3,14 @@ import puppeteer from 'puppeteer';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const url = searchParams.get('url');
+  const urlParam = searchParams.get('url');
+
+  if (!urlParam) {
+    return NextResponse.json({ error: 'Missing URL parameter' }, { status: 400 });
+  }
+
+  // Ensure URL is decoded properly - sometimes clients double encode or Next.js handles it weirdly
+  const url = decodeURIComponent(urlParam);
   const mode = searchParams.get('mode'); // 'browser' | undefined
 
   if (!url) {
