@@ -17,6 +17,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing URL parameter' }, { status: 400 });
   }
 
+  // OPTIMIZATION: If the URL is already a Google Maps Directions URL, return it immediately.
+  // This bypasses the need to fetch it (which often fails on AWS due to bot detection).
+  if (url.includes('/maps/dir/') || url.includes('/dir/')) {
+    return NextResponse.json({
+      originalUrl: url,
+      resolvedUrl: url
+    });
+  }
+
   // Strategy 1: Puppeteer (Browser execution) - Only if requested
   if (mode === 'browser') {
     try {
@@ -88,14 +97,7 @@ export async function GET(request: Request) {
     }
   }
 
-  // OPTIMIZATION: If the URL is already a Google Maps Directions URL, return it immediately.
-  // This bypasses the need to fetch it (which often fails on AWS due to bot detection).
-  if (url.includes('/maps/dir/') || url.includes('/dir/')) {
-    return NextResponse.json({
-      originalUrl: url,
-      resolvedUrl: url
-    });
-  }
+
 
   // Strategy 2: Standard Fetch (default) - Fast, Lightweight
   try {
