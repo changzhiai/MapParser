@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Waypoint } from '@/lib/map-parser';
 import L from 'leaflet';
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Car, Bike, Footprints, Maximize2, Minimize2 } from 'lucide-react';
 
 // function to generate A, B, C... labels
@@ -137,6 +138,11 @@ export default function MapView({ waypoints }: MapViewProps) {
     const [mode, setMode] = useState('driving');
     const [routePath, setRoutePath] = useState<[number, number][]>([]);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Escape listener
     useEffect(() => {
@@ -223,15 +229,14 @@ export default function MapView({ waypoints }: MapViewProps) {
     // Use a unique key to force remount on new routes
     const mapKey = `map-${validPoints[0].name}-${validPoints.length}`;
 
-    return (
+    const mapContent = (
         <div
             className={`rounded-xl overflow-hidden shadow-xl bg-gray-900 transition-all duration-300 ${isFullscreen ? '' : 'border border-white/10 relative z-0'}`}
             style={isFullscreen ? {
                 position: 'fixed',
+                inset: 0,
                 width: '100vw',
-                height: '100vh',
-                left: 0,
-                top: 0,
+                height: '100dvh',
                 zIndex: 99999,
                 margin: 0,
                 padding: 0,
@@ -298,5 +303,12 @@ export default function MapView({ waypoints }: MapViewProps) {
 
             </MapContainer>
         </div>
+    );
+
+    return (
+        <>
+            {isFullscreen && mounted ? createPortal(mapContent, document.body) : mapContent}
+            {isFullscreen && <div className="w-full h-[500px] rounded-xl bg-gray-900/10 border border-white/5" />}
+        </>
     );
 }
