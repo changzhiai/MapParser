@@ -29,8 +29,19 @@ function MapParserContent() {
   const [googleMapMode, setGoogleMapMode] = useState<'embed' | 'interactive'>('interactive');
 
   const handleAnalyze = async (urlOverride?: string, useBrowser: boolean = false) => {
-    const targetUrl = urlOverride || url;
+    let targetUrl = (urlOverride || url).trim();
     if (!targetUrl) return;
+
+    // Handle short IDs or URLs without protocol
+    if (!targetUrl.startsWith('http')) {
+      if (!targetUrl.includes('.') && !targetUrl.includes('/') && targetUrl.length >= 10) {
+        // Case: 'rqfDeqkf7vCaxXL99' -> expand to full short URL
+        targetUrl = `https://maps.app.goo.gl/${targetUrl}`;
+      } else {
+        // Case: 'maps.app.goo.gl/...' -> just add protocol
+        targetUrl = `https://${targetUrl}`;
+      }
+    }
 
     setLoading(true);
     setError('');
@@ -175,7 +186,7 @@ function MapParserContent() {
           <LinkIcon className="text-gray-400" size={20} />
           <input
             type="text"
-            placeholder="e.g. https://maps.app.goo.gl/..."
+            placeholder="e.g. maps.app.goo.gl/rqfDeqkf7vCaxXL99 or just rqfDeqkf7vCaxXL99"
             className="search-input"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
