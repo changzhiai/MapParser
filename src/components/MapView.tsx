@@ -7,6 +7,7 @@ import L from 'leaflet';
 import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Car, Bike, Footprints, Maximize2, Minimize2 } from 'lucide-react';
+import { API_BASE_URL } from '@/lib/auth-service';
 
 // function to generate A, B, C... labels
 const createAlphabetIcon = (index: number) => {
@@ -179,7 +180,7 @@ export default function MapView({ waypoints }: MapViewProps) {
 
         const fetchRoute = async () => {
             try {
-                const res = await fetch('/api/route', {
+                const res = await fetch(`${API_BASE_URL}/api/route`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

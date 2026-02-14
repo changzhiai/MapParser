@@ -3,9 +3,11 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { generateCSV, generateKML, parseMapUrl, Waypoint } from '@/lib/map-parser';
-import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map } from 'lucide-react';
+import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map, LogIn, User as UserIcon, LogOut, Bookmark, Plus, Trash2, StickyNote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
+import { authService, User, Trip, API_BASE_URL } from '@/lib/auth-service';
+import { SignInModal } from '@/components/SignInModal';
 
 // MapView must be loaded dynamically because Leaflet depends on 'window'
 const MapView = dynamic(() => import('@/components/MapView'), {
@@ -27,6 +29,14 @@ function MapParserContent() {
   const [analyzed, setAnalyzed] = useState(false);
   const [mapProvider, setMapProvider] = useState<'osm' | 'google'>('osm');
   const [googleMapMode, setGoogleMapMode] = useState<'embed' | 'interactive'>('interactive');
+
+  // Auth & Trips State
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [isSavingTrip, setIsSavingTrip] = useState(false);
+  const [tripNote, setTripNote] = useState('');
+  const [tripName, setTripName] = useState('');
 
   const handleAnalyze = async (urlOverride?: string, useBrowser: boolean = false) => {
     let targetUrl = (urlOverride || url).trim();
@@ -51,7 +61,7 @@ function MapParserContent() {
     try {
       // 1. Resolve URL
       // If useBrowser is true (deep link case), use Puppeteer mode. Otherwise default fast mode.
-      const apiUrl = `/api/resolve?url=${encodeURIComponent(targetUrl)}${useBrowser ? '&mode=browser' : ''}`;
+      const apiUrl = `${API_BASE_URL}/api/resolve?url=${encodeURIComponent(targetUrl)}${useBrowser ? '&mode=browser' : ''}`;
       const res = await fetch(apiUrl);
       const data = await res.json();
 
@@ -104,6 +114,60 @@ function MapParserContent() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const checkUser = () => {
+      const currentUser = authService.getCurrentUser();
+      setUser(currentUser);
+      if (currentUser) {
+        fetchTrips(currentUser.id!);
+      } else {
+        setTrips([]);
+      }
+    };
+
+    checkUser();
+
+    window.addEventListener('auth-change', checkUser);
+    return () => window.removeEventListener('auth-change', checkUser);
+  }, []);
+
+  const fetchTrips = async (userId: number) => {
+    const userTrips = await authService.getTrips(userId);
+    setTrips(userTrips);
+  };
+
+  const handleSaveTrip = async () => {
+    if (!user) {
+      setIsSignInModalOpen(true);
+      return;
+    }
+
+    if (!tripName.trim()) {
+      alert('Please enter a trip name');
+      return;
+    }
+
+    setIsSavingTrip(true);
+    const result = await authService.saveTrip(user.id!, tripName, url, '', '', tripNote);
+    setIsSavingTrip(false);
+
+    if (result.success) {
+      setTripNote('');
+      setTripName('');
+      fetchTrips(user.id!);
+    } else {
+      alert(result.error || 'Failed to save trip');
+    }
+  };
+
+  const handleDeleteTrip = async (tripId: number) => {
+    if (!user || !confirm('Are you sure you want to delete this trip?')) return;
+    const success = await authService.deleteTrip(tripId, user.id!);
+    if (success) {
+      fetchTrips(user.id!);
+    }
+  };
+
   const downloadFile = (content: string, filename: string, type: string) => {
     const blob = new Blob([content], { type });
     const link = document.createElement('a');
@@ -149,12 +213,8 @@ function MapParserContent() {
           })
         }}
       />
-      <div className="background-glow">
-        <div className="glow-blob glow-1" />
-        <div className="glow-blob glow-2" />
-      </div>
-
       <div className="container">
+        {/* Header moved to layout */}
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -186,7 +246,7 @@ function MapParserContent() {
           <LinkIcon className="text-gray-400" size={20} />
           <input
             type="text"
-            placeholder="e.g. maps.app.goo.gl/rqfDeqkf7vCaxXL99 or just rqfDeqkf7vCaxXL99"
+            placeholder="e.g. maps.app.goo.gl/..."
             className="search-input"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
@@ -285,6 +345,39 @@ function MapParserContent() {
                     </div>
                   </div>
                 </div>
+
+                {/* Save Trip Section */}
+                <div className="mt-8 pt-8 border-t border-white/10">
+                  <h3 className="instructions-title flex items-center gap-2">
+                    <Plus size={20} className="text-indigo-400" />
+                    Save to My Trips
+                  </h3>
+                  <div className="space-y-4 mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        placeholder="Trip Name (e.g. California Road Trip)"
+                        value={tripName}
+                        onChange={(e) => setTripName(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white transition-all shadow-inner"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Notes (optional)"
+                        value={tripNote}
+                        onChange={(e) => setTripNote(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white transition-all shadow-inner"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSaveTrip}
+                      disabled={isSavingTrip || !tripName}
+                      className="flex items-center justify-center gap-2 py-2.5 px-8 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all w-full md:w-auto ml-auto"
+                    >
+                      {isSavingTrip ? <Loader2 size={18} className="animate-spin" /> : <><Bookmark size={18} /> {user ? 'Save Trip' : 'Sign in to Save Trip'}</>}
+                    </button>
+                  </div>
+                </div>
               </motion.div>
 
               <div className="h-[20px]" style={{ minHeight: '20px', display: 'block' }}></div>
@@ -377,6 +470,90 @@ function MapParserContent() {
             </div>
           )}
         </AnimatePresence>
+
+        {/* Trips Section */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="w-full max-w-5xl mt-16 space-y-8"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                <Bookmark className="text-indigo-400" size={32} />
+                My Saved Trips
+              </h2>
+            </div>
+
+            {trips.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <AnimatePresence>
+                  {trips.map((trip) => (
+                    <motion.div
+                      key={trip.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="glass-panel p-6 flex flex-col h-full group"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-xl font-bold text-white leading-tight">{trip.name}</h3>
+                        <button
+                          onClick={() => handleDeleteTrip(trip.id)}
+                          className="text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+
+                      {trip.note && (
+                        <p className="text-gray-400 text-sm mb-4 line-clamp-3">
+                          <StickyNote size={14} className="inline mr-1" />
+                          {trip.note}
+                        </p>
+                      )}
+
+                      <div className="mt-auto pt-4 border-t border-white/5 flex justify-between items-center">
+                        <span className="text-xs text-gray-500">
+                          {new Date(trip.created_at).toLocaleDateString()}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setUrl(trip.link);
+                            handleAnalyze(trip.link);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="text-indigo-400 hover:text-indigo-300 text-sm font-bold flex items-center gap-1"
+                        >
+                          View Route <ArrowRight size={14} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <div className="glass-panel p-12 text-center flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                  <Bookmark className="text-gray-600" size={32} />
+                </div>
+                <p className="text-gray-400 text-lg">No saved trips yet. Analyze a route to save it!</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        <SignInModal
+          isOpen={isSignInModalOpen}
+          onClose={() => setIsSignInModalOpen(false)}
+          onLoginSuccess={(username) => {
+            const currentUser = authService.getCurrentUser();
+            setUser(currentUser);
+            if (currentUser) fetchTrips(currentUser.id!);
+            // Dispatch event to update Header
+            window.dispatchEvent(new Event('auth-change'));
+          }}
+        />
       </div >
     </main >
   );

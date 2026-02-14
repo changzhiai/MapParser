@@ -1,0 +1,377 @@
+
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const db = require('./database.js');
+const { OAuth2Client } = require('google-auth-library');
+const appleSignin = require('apple-signin-auth');
+const nodemailer = require('nodemailer');
+const dotenv = require('dotenv');
+const puppeteer = require('puppeteer');
+
+// Load environment variables from the root .env.local
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
+
+const app = express();
+const PORT = process.env.SERVER_PORT || 3001;
+
+app.use(cors());
+app.use(express.json());
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const transporter = nodemailer.createTransport({
+    service: process.env.EMAIL_SERVICE || 'hotmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+const sendEmail = async (to, code) => {
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: to,
+            subject: 'Map Parser - Password Reset Code',
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <h2 style="color: #4F46E5;">Password Reset</h2>
+                    <p>You requested a password reset for your Map Parser account.</p>
+                    <div style="background: #F3F4F6; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                        <span style="font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #111;">${code}</span>
+                    </div>
+                    <p style="color: #666; font-size: 14px;">This code will expire in 15 minutes.</p>
+                </div>
+            `
+        };
+        return transporter.sendMail(mailOptions);
+    } else {
+        console.log(`\n=== EMAIL SIMULATION ===\nTo: ${to}\nCode: ${code}\n================\n`);
+        return Promise.resolve();
+    }
+};
+
+// Routes
+
+app.post('/api/register', (req, res) => {
+    const { username, password, email } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required' });
+    }
+
+    db.createUser(username, password, email || null, (err, userId) => {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(409).json({ error: 'Username already exists' });
+            }
+            return res.status(500).json({ error: err.message });
+        }
+        res.status(201).json({ message: 'User created', userId });
+    });
+});
+
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    db.verifyUser(username, password, (err, isValid, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
+        res.json({ message: 'Login successful', user: { id: user.id, username: user.username, email: user.email, hasPassword: true } });
+    });
+});
+
+app.post('/api/google-login', async (req, res) => {
+    const { token, isAccessToken } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    try {
+        let email, name;
+        if (isAccessToken) {
+            const gResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!gResponse.ok) {
+                const tiResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${token}`);
+                if (tiResponse.ok) {
+                    const tiData = await tiResponse.json();
+                    email = tiData.email;
+                } else {
+                    throw new Error('Google verification failed');
+                }
+            } else {
+                const gData = await gResponse.json();
+                email = gData.email;
+                name = gData.name;
+            }
+        } else {
+            const ticket = await googleClient.verifyIdToken({
+                idToken: token,
+                audience: process.env.GOOGLE_CLIENT_ID
+            });
+            const payload = ticket.getPayload();
+            email = payload.email;
+            name = payload.name;
+        }
+
+        db.getUserByEmail(email, (err, user) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (user) {
+                return res.json({ message: 'Login successful', user: { id: user.id, username: user.username, email: user.email, hasPassword: !!user.password } });
+            } else {
+                let baseUsername = name || email.split('@')[0];
+                db.createUser(baseUsername, null, email, (err, userId) => {
+                    if (err && err.message.includes('UNIQUE constraint failed')) {
+                        baseUsername = `${baseUsername}_${Math.floor(Math.random() * 1000)}`;
+                        db.createUser(baseUsername, null, email, (err, userId) => {
+                            if (err) return res.status(500).json({ error: err.message });
+                            res.json({ message: 'Login successful', user: { id: userId, username: baseUsername, email: email, hasPassword: false } });
+                        });
+                    } else if (err) {
+                        res.status(500).json({ error: err.message });
+                    } else {
+                        res.json({ message: 'Login successful', user: { id: userId, username: baseUsername, email: email, hasPassword: false } });
+                    }
+                });
+            }
+        });
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid Google token' });
+    }
+});
+
+app.post('/api/apple-login', async (req, res) => {
+    const { token, user: appleUser } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    try {
+        const { sub: appleId, email } = await appleSignin.verifyIdToken(token, {
+            audience: process.env.APPLE_CLIENT_ID,
+            ignoreExpiration: false,
+        });
+
+        db.getUserByEmail(email, (err, user) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (user) {
+                return res.json({ message: 'Login successful', user: { id: user.id, username: user.username, email: user.email, hasPassword: !!user.password } });
+            } else {
+                let firstName = appleUser?.name?.firstName || '';
+                let lastName = appleUser?.name?.lastName || '';
+                let fullName = [firstName, lastName].filter(Boolean).join(' ');
+                let baseUsername = fullName || email.split('@')[0];
+                db.createUser(baseUsername, null, email, (err, userId) => {
+                    if (err && err.message.includes('UNIQUE constraint failed')) {
+                        baseUsername = `${baseUsername}_${Math.floor(Math.random() * 1000)}`;
+                        db.createUser(baseUsername, null, email, (err, userId) => {
+                            if (err) return res.status(500).json({ error: err.message });
+                            res.json({ message: 'Login successful', user: { id: userId, username: baseUsername, email: email, hasPassword: false } });
+                        });
+                    } else if (err) {
+                        res.status(500).json({ error: err.message });
+                    } else {
+                        res.json({ message: 'Login successful', user: { id: userId, username: baseUsername, email: email, hasPassword: false } });
+                    }
+                });
+            }
+        });
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid Apple token' });
+    }
+});
+
+app.post('/api/send-code', (req, res) => {
+    const { email } = req.body;
+    db.getUserByEmail(email, (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        db.createVerificationCode(email, code, async (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            try {
+                await sendEmail(email, code);
+                res.json({ message: 'Verification code sent' });
+            } catch (emailErr) {
+                res.status(500).json({ error: 'Failed to send email' });
+            }
+        });
+    });
+});
+
+app.post('/api/reset-password', (req, res) => {
+    const { email, code, newPassword } = req.body;
+    db.getVerificationCode(email, (err, record) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!record || record.code !== code || record.expires_at < Date.now()) {
+            return res.status(400).json({ error: 'Invalid or expired code' });
+        }
+        db.getUserByEmail(email, (err, user) => {
+            if (err) return res.status(500).json({ error: err.message });
+            db.updateUserPassword(user.id, newPassword, (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                db.deleteVerificationCode(email);
+                res.json({ message: 'Password updated successfully' });
+            });
+        });
+    });
+});
+
+// Trips endpoints
+
+app.get('/api/trips', (req, res) => {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: 'User ID is required' });
+    db.getUserTrips(parseInt(userId), (err, trips) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ trips });
+    });
+});
+
+app.post('/api/trips', (req, res) => {
+    const { userId, name, link, year, location, note } = req.body;
+    if (!userId || !name || !link) return res.status(400).json({ error: 'Missing required fields' });
+
+    db.createTrip(parseInt(userId), name, link, year || '', location || '', note || '', (err, tripId) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ message: 'Trip saved', tripId });
+    });
+});
+
+app.delete('/api/trips/:id', (req, res) => {
+    const { id } = req.params;
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: 'User ID is required' });
+    db.deleteTrip(parseInt(id), parseInt(userId), (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Trip deleted' });
+    });
+});
+
+app.put('/api/trips/:id', (req, res) => {
+    const { id } = req.params;
+    const { userId, name, link, year, location, note } = req.body;
+    if (!userId || !name || !link) return res.status(400).json({ error: 'Missing required fields' });
+    db.updateTrip(parseInt(id), parseInt(userId), name, link, year || '', location || '', note || '', (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Trip updated' });
+    });
+});
+
+app.get('/api/profile', (req, res) => {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: 'Username is required' });
+    db.getUserByUsername(username, (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        res.json({ user: { id: user.id, username: user.username, email: user.email, hasPassword: !!user.password } });
+    });
+});
+
+app.put('/api/profile', (req, res) => {
+    const { userId, username, email } = req.body;
+    if (!userId || !username) return res.status(400).json({ error: 'Missing required fields' });
+    db.updateUserProfile(userId, username, email, (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Profile updated', user: { id: userId, username, email } });
+    });
+});
+
+app.delete('/api/profile', (req, res) => {
+    const { userId, password } = req.body;
+    if (!userId) return res.status(400).json({ error: 'User ID is required' });
+
+    db.getUserById(userId, (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        if (user.password && password) {
+            const isValid = bcrypt.compareSync(password, user.password);
+            if (!isValid) return res.status(401).json({ error: 'Invalid password' });
+        } else if (user.password && !password) {
+            return res.status(400).json({ error: 'Password required' });
+        }
+
+        db.deleteUser(userId, (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: 'Account deleted' });
+        });
+    });
+});
+
+app.get('/api/resolve', async (req, res) => {
+    const urlParam = req.query.url;
+    if (!urlParam) return res.status(400).json({ error: 'Missing URL parameter' });
+
+    const url = decodeURIComponent(urlParam);
+    const mode = req.query.mode;
+
+    if (url.includes('/maps/dir/') || url.includes('/dir/')) {
+        return res.json({ originalUrl: url, resolvedUrl: url });
+    }
+
+    if (mode === 'browser') {
+        try {
+            const browser = await puppeteer.launch({
+                headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-blink-features=AutomationControlled']
+            });
+            const page = await browser.newPage();
+            await page.setRequestInterception(true);
+            page.on('request', (req) => {
+                if (['image', 'stylesheet', 'font', 'media', 'imageset'].includes(req.resourceType())) req.abort();
+                else req.continue();
+            });
+            await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36');
+
+            try {
+                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                try {
+                    await page.waitForFunction(() => window.location.href.includes('@') || window.location.href.includes('/data='), { timeout: 5000 });
+                } catch (e) { }
+                const resolvedUrl = page.url();
+                await browser.close();
+                return res.json({ originalUrl: url, resolvedUrl: resolvedUrl });
+            } catch (pageError) {
+                await browser.close();
+                const fallbackRes = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+                return res.json({ originalUrl: url, resolvedUrl: fallbackRes.url });
+            }
+        } catch (error) {
+            return res.status(500).json({ error: 'Failed to resolve URL' });
+        }
+    }
+
+    try {
+        const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+        return res.json({ originalUrl: url, resolvedUrl: response.url });
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to resolve URL' });
+    }
+});
+
+app.post('/api/route', async (req, res) => {
+    try {
+        const { coordinates, mode } = req.body;
+        if (!coordinates || coordinates.length < 2) return res.status(400).json({ error: 'At least 2 coordinates are required' });
+
+        let profile = 'driving';
+        if (mode === 'walking') profile = 'walking';
+        if (mode === 'bicycling' || mode === 'cycling') profile = 'cycling';
+
+        const coordString = coordinates.map(c => `${c.lng},${c.lat}`).join(';');
+        const osrmUrl = `https://router.project-osrm.org/route/v1/${profile}/${coordString}?overview=full&geometries=geojson`;
+
+        const response = await fetch(osrmUrl);
+        if (!response.ok) throw new Error('OSRM API failed');
+        const data = await response.json();
+
+        if (!data.routes || data.routes.length === 0) return res.status(404).json({ error: 'No route found' });
+
+        const routeCoordinates = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+        res.json({ route: routeCoordinates, distance: data.routes[0].distance, duration: data.routes[0].duration });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch route' });
+    }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Express server running on http://0.0.0.0:${PORT}`);
+});
