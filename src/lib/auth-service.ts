@@ -18,6 +18,7 @@ export interface Trip {
     year?: string;
     location?: string;
     note?: string;
+    route_summary?: string;
     created_at: number;
 }
 
@@ -205,13 +206,13 @@ export const authService = {
 
     // Trip methods
 
-    async saveTrip(userId: number, name: string, link: string, year: string, location: string, note: string): Promise<{ success: boolean; error?: string; tripId?: number }> {
+    async saveTrip(userId: number, name: string, link: string, year: string, location: string, note: string, routeSummary?: string): Promise<{ success: boolean; error?: string; tripId?: number }> {
         try {
             const response = await fetch(`${API_URL}/trips`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 // eslint-disable-next-line @typescript-eslint/naming-convention
-                body: JSON.stringify({ userId, name, link, year, location, note })
+                body: JSON.stringify({ userId, name, link, year, location, note, routeSummary })
             });
             const data = await response.json();
             return { success: response.ok, error: data.error, tripId: data.tripId };
@@ -220,13 +221,13 @@ export const authService = {
         }
     },
 
-    async updateTrip(tripId: number, userId: number, name: string, link: string, year: string, location: string, note: string): Promise<{ success: boolean; error?: string }> {
+    async updateTrip(tripId: number, userId: number, name: string, link: string, year: string, location: string, note: string, routeSummary?: string): Promise<{ success: boolean; error?: string }> {
         try {
             const response = await fetch(`${API_URL}/trips/${tripId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 // eslint-disable-next-line @typescript-eslint/naming-convention
-                body: JSON.stringify({ userId, name, link, year, location, note })
+                body: JSON.stringify({ userId, name, link, year, location, note, routeSummary })
             });
             const data = await response.json();
             return { success: response.ok, error: data.error };

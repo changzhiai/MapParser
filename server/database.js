@@ -123,10 +123,10 @@ const updateUserPassword = (userId, newPassword, callback) => {
 
 // Trip functions
 
-const createTrip = (userId, name, link, year, location, note, callback) => {
+const createTrip = (userId, name, link, year, location, note, routeSummary, callback) => {
     const createdAt = Date.now();
-    const stmt = db.prepare("INSERT INTO trips (user_id, name, link, year, location, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    stmt.run(userId, name, link, year, location, note, createdAt, function (err) {
+    const stmt = db.prepare("INSERT INTO trips (user_id, name, link, year, location, note, route_summary, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    stmt.run(userId, name, link, year, location, note, routeSummary, createdAt, function (err) {
         callback(err, this ? this.lastID : null);
     });
     stmt.finalize();
@@ -144,9 +144,9 @@ const deleteTrip = (tripId, userId, callback) => {
     });
 };
 
-const updateTrip = (tripId, userId, name, link, year, location, note, callback) => {
-    const stmt = db.prepare("UPDATE trips SET name = ?, link = ?, year = ?, location = ?, note = ? WHERE id = ? AND user_id = ?");
-    stmt.run(name, link, year, location, note, tripId, userId, function (err) {
+const updateTrip = (tripId, userId, name, link, year, location, note, routeSummary, callback) => {
+    const stmt = db.prepare("UPDATE trips SET name = ?, link = ?, year = ?, location = ?, note = ?, route_summary = ? WHERE id = ? AND user_id = ?");
+    stmt.run(name, link, year, location, note, routeSummary, tripId, userId, function (err) {
         callback(err);
     });
     stmt.finalize();

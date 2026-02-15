@@ -3,6 +3,30 @@ export interface Waypoint {
     coords?: { lat: number; lng: number };
 }
 
+/**
+ * Shortens a waypoint name by taking the portion before the first comma,
+ * unless it is a coordinate pair which should be preserved.
+ */
+export function cleanWaypointName(name: string): string {
+    const trimmed = name.trim();
+
+    // 1. Preserve coordinate pairs
+    if (trimmed.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/)) {
+        return trimmed;
+    }
+
+    // 2. Language-based detection
+    const hasPostcode = trimmed.includes("邮政编码");
+
+    if (hasPostcode) {
+        // For Chinese context or entries with postcodes, split by space 
+        return trimmed.split(/\s+/)[0].trim();
+    } else {
+        // For English/others, split by comma
+        return trimmed.split(',')[0].trim();
+    }
+}
+
 export function parseMapUrl(url: string): Waypoint[] {
     try {
         const urlObj = new URL(url);
@@ -22,8 +46,7 @@ export function parseMapUrl(url: string): Waypoint[] {
                 if (segment.startsWith('am=')) break;
 
                 const decoded = decodeURIComponent(segment).replace(/\+/g, ' ');
-                const shortName = decoded.split(',')[0].trim();
-                names.push(shortName);
+                names.push(cleanWaypointName(decoded));
             }
         }
 
@@ -60,8 +83,20 @@ export function parseMapUrl(url: string): Waypoint[] {
         const waypoints: Waypoint[] = [];
 
         for (let i = 0; i < count; i++) {
-            const name = names[i] || `Point ${i + 1}`;
+            let name = names[i];
+            if (name === "''" || name === '""') {
+                name = '';
+            }
+
             const coord = coords[i]; // 1:1 mapping
+
+            if (!name) {
+                if (coord) {
+                    name = `${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)}`;
+                } else {
+                    name = `Waypoint ${i + 1}`;
+                }
+            }
 
             waypoints.push({
                 name,

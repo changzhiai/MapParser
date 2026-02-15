@@ -12,6 +12,9 @@ const puppeteer = require('puppeteer');
 // Load environment variables from the root .env.local
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
+// Helper to delay
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 const app = express();
 const PORT = process.env.SERVER_PORT || 3001;
 
@@ -226,10 +229,10 @@ app.get('/api/trips', (req, res) => {
 });
 
 app.post('/api/trips', (req, res) => {
-    const { userId, name, link, year, location, note } = req.body;
+    const { userId, name, link, year, location, note, routeSummary } = req.body;
     if (!userId || !name || !link) return res.status(400).json({ error: 'Missing required fields' });
 
-    db.createTrip(parseInt(userId), name, link, year || '', location || '', note || '', (err, tripId) => {
+    db.createTrip(parseInt(userId), name, link, year || '', location || '', note || '', routeSummary || '', (err, tripId) => {
         if (err) return res.status(500).json({ error: err.message });
         res.status(201).json({ message: 'Trip saved', tripId });
     });
@@ -247,9 +250,9 @@ app.delete('/api/trips/:id', (req, res) => {
 
 app.put('/api/trips/:id', (req, res) => {
     const { id } = req.params;
-    const { userId, name, link, year, location, note } = req.body;
+    const { userId, name, link, year, location, note, routeSummary } = req.body;
     if (!userId || !name || !link) return res.status(400).json({ error: 'Missing required fields' });
-    db.updateTrip(parseInt(id), parseInt(userId), name, link, year || '', location || '', note || '', (err) => {
+    db.updateTrip(parseInt(id), parseInt(userId), name, link, year || '', location || '', note || '', routeSummary || '', (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Trip updated' });
     });
@@ -296,6 +299,107 @@ app.delete('/api/profile', (req, res) => {
     });
 });
 
+// Persistent browser instance to avoid cold starts
+let globalBrowser = null;
+const getBrowser = async () => {
+    try {
+        if (!globalBrowser || !globalBrowser.isConnected()) {
+            console.log('[Browser] Launching new instance...');
+            globalBrowser = await puppeteer.launch({
+                headless: true
+            });
+
+            globalBrowser.on('disconnected', () => {
+                console.log('[Browser] Instance disconnected');
+                globalBrowser = null;
+            });
+        }
+        return globalBrowser;
+    } catch (e) {
+        console.error('[Browser] Failed to launch:', e.message);
+        globalBrowser = null;
+        throw e;
+    }
+};
+
+// Helper for browser-based resolution
+const resolveWithBrowser = async (url) => {
+    let page;
+    try {
+        const browser = await getBrowser();
+        page = await browser.newPage();
+
+        // Optimizations: skip assets
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            const type = req.resourceType();
+            if (['image', 'stylesheet', 'font', 'media', 'imageset'].includes(type)) {
+                req.abort();
+            } else {
+                req.continue();
+            }
+        });
+
+        // Set a realistic modern user agent
+        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
+
+        try {
+            const start = Date.now();
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+            try {
+                // Wait for either the inputs OR the directions panel content
+                await page.waitForFunction(() => {
+                    return document.querySelectorAll('input.ZBTq6e').length > 0 ||
+                        document.querySelectorAll('.IA0p8e').length > 0 ||
+                        document.querySelectorAll('.drp-location-name').length > 0 ||
+                        document.querySelectorAll('div[id^="directions-searchbox"] input').length > 0;
+                }, { timeout: 4000 });
+            } catch (e) {
+                // Ignore timeout
+            }
+
+            // Extract waypoint names
+            const waypointNames = await page.evaluate(() => {
+                let inputs = Array.from(document.querySelectorAll('input.ZBTq6e'));
+                if (inputs.length === 0) {
+                    inputs = Array.from(document.querySelectorAll('div[id^="directions-searchbox"] input'));
+                }
+
+                let names = inputs.map(input => input.value).filter(val => val && val.trim() !== '');
+
+                if (names.length === 0) {
+                    const waypointElements = Array.from(document.querySelectorAll('.IA0p8e, .drp-location-name, div[aria-label^="Destination"], div[aria-label^="Starting point"]'));
+                    names = waypointElements.map(el => {
+                        const aria = el.getAttribute('aria-label');
+                        if (aria) return aria.replace(/^(Starting point|Destination|Via) /, '');
+                        return el.innerText;
+                    }).filter(val => val && val.trim() !== '');
+                }
+
+                return names;
+            });
+
+            console.log(`[Browser] Resolved in ${Date.now() - start}ms: ${waypointNames.length} names found`);
+            const resolvedUrl = page.url();
+            return { originalUrl: url, resolvedUrl: resolvedUrl, waypointNames: waypointNames, browserUsed: true };
+        } finally {
+            if (page) await page.close();
+        }
+    } catch (error) {
+        console.error(`[Browser] Error: ${error.message}`);
+        if (page) try { await page.close(); } catch (e) { }
+
+        // Fallback to basic fetch
+        try {
+            const fallbackRes = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+            return { originalUrl: url, resolvedUrl: fallbackRes.url, waypointNames: [], browserUsed: true };
+        } catch (e) {
+            return { originalUrl: url, resolvedUrl: url, waypointNames: [], browserUsed: true, error: error.message };
+        }
+    }
+};
+
 app.get('/api/resolve', async (req, res) => {
     const urlParam = req.query.url;
     if (!urlParam) return res.status(400).json({ error: 'Missing URL parameter' });
@@ -303,46 +407,47 @@ app.get('/api/resolve', async (req, res) => {
     const url = decodeURIComponent(urlParam);
     const mode = req.query.mode;
 
+    // Direct directions URL - return as is
     if (url.includes('/maps/dir/') || url.includes('/dir/')) {
+        // Check for empty names in the URL itself - if found, upgrade to browser mode immediately?
+        // Actually, logic below handles "short" links. If client sends a full /dir/ link with '' that's rare unless they copy-pasted it.
+        // But if they did, we should probably handle it.
+        if (url.includes("/''/") || url.includes("/%27%27/")) {
+            return res.json(await resolveWithBrowser(url));
+        }
         return res.json({ originalUrl: url, resolvedUrl: url });
     }
 
+    // Explicit browser mode
     if (mode === 'browser') {
         try {
-            const browser = await puppeteer.launch({
-                headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-blink-features=AutomationControlled']
-            });
-            const page = await browser.newPage();
-            await page.setRequestInterception(true);
-            page.on('request', (req) => {
-                if (['image', 'stylesheet', 'font', 'media', 'imageset'].includes(req.resourceType())) req.abort();
-                else req.continue();
-            });
-            await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36');
-
-            try {
-                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
-                try {
-                    await page.waitForFunction(() => window.location.href.includes('@') || window.location.href.includes('/data='), { timeout: 5000 });
-                } catch (e) { }
-                const resolvedUrl = page.url();
-                await browser.close();
-                return res.json({ originalUrl: url, resolvedUrl: resolvedUrl });
-            } catch (pageError) {
-                await browser.close();
-                const fallbackRes = await fetch(url, { method: 'HEAD', redirect: 'follow' });
-                return res.json({ originalUrl: url, resolvedUrl: fallbackRes.url });
-            }
+            const result = await resolveWithBrowser(url);
+            return res.json(result);
         } catch (error) {
             return res.status(500).json({ error: 'Failed to resolve URL' });
         }
     }
 
+    // Fast mode with auto-upgrade
     try {
         const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
-        return res.json({ originalUrl: url, resolvedUrl: response.url });
+        const resolvedUrl = response.url;
+
+        // Check for "bad" data indicators in the resolved URL
+        // Google Maps puts '' for empty waypoints in /dir/ paths
+        const decoded = decodeURIComponent(resolvedUrl);
+        if (decoded.includes("/''/") || decoded.includes("/%27%27/")) {
+            // Optimization: pass already resolved URL to skip browser redirects
+            const browserResult = await resolveWithBrowser(resolvedUrl);
+            // Ensure we return the original input URL
+            browserResult.originalUrl = url;
+            return res.json(browserResult);
+        }
+
+        return res.json({ originalUrl: url, resolvedUrl: resolvedUrl });
     } catch (error) {
+        // If basic fetch failed, try one last desperation attempt with browser? 
+        // Or just fail. Let's just fail for now to avoid infinite hangs.
         return res.status(500).json({ error: 'Failed to resolve URL' });
     }
 });
