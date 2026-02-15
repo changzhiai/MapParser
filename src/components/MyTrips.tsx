@@ -66,6 +66,7 @@ export default function MyTrips() {
     const router = useRouter();
 
     useEffect(() => {
+        window.scrollTo(0, 0);
         const user = authService.getCurrentUser();
         if (!user) {
             router.push('/');
@@ -260,36 +261,35 @@ export default function MyTrips() {
     }
 
     return (
-        <main className="container container-wide min-h-screen py-24">
+        <main className="container min-h-screen pt-4 pb-24">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-7xl mx-auto px-4 md:px-6"
+                className="w-full"
             >
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-                            <Image src="/icon.svg" alt="My Trips" width={24} height={24} className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-white">My Trips</h1>
-                            <p className="text-gray-400">Manage your saved routes and journeys</p>
-                        </div>
+                <div className="flex flex-row items-center justify-between gap-4 mb-8">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight">My Trips</h1>
+                        <p className="text-gray-400 text-sm sm:text-base">Manage your saved journeys</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 sm:gap-3">
                         <button
                             onClick={handleExport}
                             disabled={trips.length === 0}
-                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors border border-white/10"
+                            className="flex items-center justify-center gap-0 sm:gap-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 sm:px-4 py-2.5 rounded-xl font-medium transition-all border border-white/10 active:scale-95"
+                            title="Export CSV"
                         >
-                            <Download size={20} /> Export CSV
+                            <Download size={18} />
+                            <span className="hidden sm:inline">Export CSV</span>
                         </button>
                         <button
                             onClick={handleAddTrip}
                             disabled={editingTrip !== null}
-                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                            className="flex items-center justify-center gap-0 sm:gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 sm:px-4 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+                            title="Add Trip"
                         >
-                            <Plus size={20} /> Add Trip
+                            <Plus size={18} />
+                            <span className="hidden sm:inline">Add Trip</span>
                         </button>
                     </div>
                 </div>
@@ -302,7 +302,7 @@ export default function MyTrips() {
                                     <tr className="border-b border-white/10 bg-white/5">
                                         <th className="px-2 py-4 text-sm font-semibold text-gray-300 w-14">No.</th>
                                         <th className="px-2 py-4 text-sm font-semibold text-gray-300">Trip Name</th>
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300">Route</th>
+                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300">Route Link</th>
                                         <th className="px-2 py-4 text-sm font-semibold text-gray-300 w-20">Year</th>
                                         <th className="px-2 py-4 text-sm font-semibold text-gray-300">Location</th>
                                         <th className="px-2 py-4 text-sm font-semibold text-gray-300">Route Summary</th>
