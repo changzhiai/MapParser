@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { generateCSV, generateKML, parseMapUrl, Waypoint } from '@/lib/map-parser';
+import { generateCSV, generateKML, parseMapUrl, Waypoint, cleanWaypointName } from '@/lib/map-parser';
 import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map, LogIn, User as UserIcon, LogOut, Bookmark, Plus, Trash2, StickyNote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
@@ -69,6 +69,28 @@ function MapParserContent() {
 
       // 2. Parse
       const points = parseMapUrl(data.resolvedUrl);
+
+      // Enhanced: Overlay scraped names if available from browser mode
+      if (data.waypointNames && Array.isArray(data.waypointNames)) {
+        points.forEach((p, i) => {
+          if (data.waypointNames[i]) {
+            p.name = cleanWaypointName(data.waypointNames[i]);
+          }
+        });
+      } else if (!useBrowser) {
+        // If we didn't use browser mode, check if we got poor quality names
+        // Pattern matches: "35.1234, -80.1234" or "Waypoint 1"
+        const needsBetterNames = points.some(p =>
+          p.name.match(/^-?\d+\.\d+, -?\d+\.\d+$/) ||
+          p.name.startsWith('Waypoint ')
+        );
+
+        if (needsBetterNames) {
+          console.log("Poor quality names detected, retrying with browser mode...");
+          // Recursive call with browser mode enabled
+          return handleAnalyze(targetUrl, true);
+        }
+      }
 
       if (points.length === 0) {
         throw new Error('No waypoints found. Ensure it is a valid Directions link.');
