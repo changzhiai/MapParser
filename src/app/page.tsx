@@ -2,8 +2,9 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { generateCSV, generateKML, parseMapUrl, Waypoint, cleanWaypointName } from '@/lib/map-parser';
-import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map, LogIn, User as UserIcon, LogOut, Bookmark, Plus, Trash2, StickyNote } from 'lucide-react';
+import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map, LogIn, User as UserIcon, LogOut, Bookmark, Plus, Trash2, StickyNote, Route } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { authService, User, Trip, API_BASE_URL } from '@/lib/auth-service';
@@ -351,7 +352,7 @@ function MapParserContent() {
                 </div>
 
                 <div className="instructions">
-                  <h3 className="instructions-title">Transfer to Your Own Google My Maps</h3>
+                  <h3 className="instructions-title">Transfer to Your Own "Google My Maps"</h3>
                   <div className="steps-grid">
                     <div className="step-card">
                       <strong>1. Download CSV</strong>
@@ -501,57 +502,92 @@ function MapParserContent() {
             className="w-full max-w-5xl mt-16 space-y-8"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
-                <Bookmark className="text-indigo-400" size={32} />
-                My Saved Trips
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2.5">
+                <Bookmark className="text-indigo-400" size={24} />
+                My Recent Trips
               </h2>
             </div>
 
             {trips.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <AnimatePresence>
-                  {trips.map((trip) => (
-                    <motion.div
-                      key={trip.id}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      className="glass-panel p-6 flex flex-col h-full group"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-xl font-bold text-white leading-tight">{trip.name}</h3>
-                        <button
-                          onClick={() => handleDeleteTrip(trip.id)}
-                          className="text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                  {trips.slice(0, 6).map((trip, index) => {
+                    const isLastOfSix = index === 5 && trips.length > 6;
 
-                      {trip.note && (
-                        <p className="text-gray-400 text-sm mb-4 line-clamp-3">
-                          <StickyNote size={14} className="inline mr-1" />
-                          {trip.note}
-                        </p>
-                      )}
-
-                      <div className="mt-auto pt-4 border-t border-white/5 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">
-                          {new Date(trip.created_at).toLocaleDateString()}
-                        </span>
-                        <button
-                          onClick={() => {
-                            setUrl(trip.link);
-                            handleAnalyze(trip.link);
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                          className="text-indigo-400 hover:text-indigo-300 text-sm font-bold flex items-center gap-1"
+                    if (isLastOfSix) {
+                      return (
+                        <motion.div
+                          key="more-trips-card"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="glass-panel p-6 flex flex-col h-full group bg-indigo-500/5 border-indigo-500/20"
                         >
-                          View Route <ArrowRight size={14} />
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
+                          <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-xl font-bold text-indigo-300 leading-tight">More Trips</h3>
+                            <div className="text-indigo-400/50">
+                              <Route size={24} />
+                            </div>
+                          </div>
+
+                          <p className="text-gray-400 text-sm mb-4">
+                            You have {trips.length - 5} more saved journeys in your collection.
+                          </p>
+
+                          <div className="mt-auto pt-4 border-t border-white/5 flex justify-end items-center">
+                            <Link
+                              href="/my-trips"
+                              className="text-indigo-400 hover:text-indigo-300 text-sm font-bold flex items-center gap-1 group/btn"
+                            >
+                              View more trips <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                            </Link>
+                          </div>
+                        </motion.div>
+                      );
+                    }
+
+                    return (
+                      <motion.div
+                        key={trip.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="glass-panel p-6 flex flex-col h-full group"
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-xl font-bold text-white leading-tight">{trip.name}</h3>
+                          <button
+                            onClick={() => handleDeleteTrip(trip.id)}
+                            className="text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+
+                        {trip.note && (
+                          <p className="text-gray-400 text-sm mb-4 line-clamp-3">
+                            <StickyNote size={14} className="inline mr-1" />
+                            {trip.note}
+                          </p>
+                        )}
+
+                        <div className="mt-auto pt-4 border-t border-white/5 flex justify-between items-center">
+                          <span className="text-xs text-gray-500">
+                            {new Date(trip.created_at).toLocaleDateString()}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setUrl(trip.link);
+                              handleAnalyze(trip.link);
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            className="text-indigo-400 hover:text-indigo-300 text-sm font-bold flex items-center gap-1"
+                          >
+                            View Route <ArrowRight size={14} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
               </div>
             ) : (

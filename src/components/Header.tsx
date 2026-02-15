@@ -80,12 +80,12 @@ export function Header() {
     return (
         <>
             <header className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-md border-b border-white/10">
-                <div className="w-full max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-                    <Link href="/" className="flex items-center gap-2 group">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500/30 transition-colors">
-                            <Image src="/icon.svg" alt="MapParser Logo" width={24} height={24} className="w-6 h-6" />
+                <div className="w-full max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
+                    <Link href="/" className="flex items-center gap-3 group">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500/30 transition-colors">
+                            <Image src="/icon.svg" alt="MapParser Logo" width={32} height={32} className="w-8 h-8" />
                         </div>
-                        <span className="font-bold text-lg tracking-tight text-white">MapParser</span>
+                        <span className="font-bold text-xl tracking-tight text-white">MapParser</span>
                     </Link>
 
                     <div className="flex items-center gap-4">
@@ -93,12 +93,12 @@ export function Header() {
                             <div className="relative" ref={dropdownRef}>
                                 <button
                                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                    className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 py-1.5 px-3 rounded-full transition-all"
+                                    className="flex items-center gap-2.5 bg-white/5 hover:bg-white/10 border border-white/10 py-2 px-4 rounded-full transition-all"
                                 >
-                                    <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold">
                                         {user.username[0].toUpperCase()}
                                     </div>
-                                    <ChevronDown size={14} className={`text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                    <ChevronDown size={16} className={`text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 <AnimatePresence>
@@ -157,9 +157,9 @@ export function Header() {
                         ) : (
                             <button
                                 onClick={() => setIsSignInModalOpen(true)}
-                                className="flex items-center gap-2 py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all"
+                                className="flex items-center gap-2.5 py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full text-base font-bold shadow-lg shadow-indigo-500/20 transition-all"
                             >
-                                <LogIn size={16} />
+                                <LogIn size={18} />
                                 Sign In
                             </button>
                         )}
@@ -183,7 +183,7 @@ export function Header() {
                 onClose={() => setIsAboutModalOpen(false)}
             />
             {/* Spacer for fixed header */}
-            <div className="h-16"></div>
+            <div className="h-20"></div>
         </>
     );
 }
