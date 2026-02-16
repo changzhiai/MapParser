@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:3001';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 const API_URL = `${API_BASE_URL}/api`;
 
 const CURRENT_USER_KEY = 'map_parser_current_user';
