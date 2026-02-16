@@ -1,5 +1,8 @@
+import { authService, API_BASE_URL } from './auth-service';
+
 export interface Waypoint {
     name: string;
+    fullName?: string;
     coords?: { lat: number; lng: number };
 }
 
@@ -46,7 +49,7 @@ export function parseMapUrl(url: string): Waypoint[] {
                 if (segment.startsWith('am=')) break;
 
                 const decoded = decodeURIComponent(segment).replace(/\+/g, ' ');
-                names.push(cleanWaypointName(decoded));
+                names.push(decoded);
             }
         }
 
@@ -78,14 +81,25 @@ export function parseMapUrl(url: string): Waypoint[] {
             }
         }
 
+        // 2.5 Extract Coordinates from @ part (fallback for single place or final destination)
+        if (coords.length === 0) {
+            const atMatch = path.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            if (atMatch) {
+                coords.push({ lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) });
+            }
+        }
+
         // 3. Merge
         const count = Math.max(names.length, coords.length);
         const waypoints: Waypoint[] = [];
 
         for (let i = 0; i < count; i++) {
-            let name = names[i];
+            let fullName = names[i] || '';
+            let name = fullName ? cleanWaypointName(fullName) : '';
+
             if (name === "''" || name === '""') {
                 name = '';
+                fullName = '';
             }
 
             const coord = coords[i]; // 1:1 mapping
@@ -100,6 +114,7 @@ export function parseMapUrl(url: string): Waypoint[] {
 
             waypoints.push({
                 name,
+                fullName: fullName || name,
                 coords: coord
             });
         }
@@ -125,6 +140,122 @@ export function parseMapUrl(url: string): Waypoint[] {
         console.error("Parse error", e);
         return [];
     }
+}
+
+/**
+ * Extracts a likely location (e.g. "CA, USA" or "London, UK") from a list of waypoint names.
+ * It favors the format: [State/City], [Country].
+ */
+export function extractLocationFromNames(names: string[]): string {
+    if (!names || names.length === 0) return '';
+
+    const suffixes = new Map<string, number>();
+
+    for (const name of names) {
+        // Skip coordinate strings which aren't useful for location names
+        if (name.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/)) continue;
+
+        const parts = name.split(',').map(p => p.trim()).filter(Boolean);
+
+        if (parts.length >= 2) {
+            const country = parts[parts.length - 1];
+            let stateOrCity = parts[parts.length - 2];
+
+            // Remove postcodes/digits from the state/city part (e.g., "CA 94103" -> "CA")
+            stateOrCity = stateOrCity.replace(/\d+/g, '').trim();
+
+            if (stateOrCity && country) {
+                const combined = `${stateOrCity}, ${country}`;
+                suffixes.set(combined, (suffixes.get(combined) || 0) + 1);
+            }
+        }
+    }
+
+    if (suffixes.size > 0) {
+        // Return the most frequent location pattern found
+        let bestLocation = '';
+        let maxCount = 0;
+        for (const [loc, count] of suffixes.entries()) {
+            if (count > maxCount) {
+                maxCount = count;
+                bestLocation = loc;
+            }
+        }
+        return bestLocation;
+    }
+
+    // Fallback logic
+    if (names.length > 0) {
+        // Find the first name that looks like a location (has commas or is a significant destination)
+        for (let i = names.length - 1; i >= 0; i--) {
+            const n = names[i];
+            const parts = n.split(',').map(p => p.trim());
+            if (parts.length >= 2) {
+                const country = parts[parts.length - 1];
+                const state = parts[parts.length - 2].replace(/\d+/g, '').trim();
+                if (state && country) return `${state}, ${country}`;
+            }
+        }
+
+        // Last resort: just the city name of the destination
+        const dest = names[names.length - 1].split(',')[0].trim();
+        if (dest && dest.length < 40 && !dest.match(/\d/)) return dest;
+    }
+
+    return '';
+}
+
+/**
+ * Fetches precise State, Country using the server-side geocoding API.
+ */
+export async function getLocationWithAPI(queryOrWps: string | Waypoint[]): Promise<string> {
+    try {
+        let params = '';
+
+        if (typeof queryOrWps === 'string') {
+            params = `query=${encodeURIComponent(queryOrWps)}`;
+        } else if (Array.isArray(queryOrWps) && queryOrWps.length > 0) {
+            // Try to use coordinates of the last valid waypoint (destination)
+            const destination = [...queryOrWps].reverse().find(wp => wp.coords);
+            if (destination && destination.coords) {
+                params = `lat=${destination.coords.lat}&lng=${destination.coords.lng}`;
+            } else {
+                // Fallback to name of destination
+                params = `query=${encodeURIComponent(queryOrWps[queryOrWps.length - 1].name)}`;
+            }
+        }
+
+        if (!params) return '';
+
+        const response = await fetch(`${API_BASE_URL}/api/geocode?${params}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.location) return data.location;
+        }
+
+        // Fallback for names if specific name failed: try a broader search using fullName if it looks like an address
+        if (typeof queryOrWps !== 'string' && Array.isArray(queryOrWps) && queryOrWps.length > 0) {
+            const dest = queryOrWps[queryOrWps.length - 1];
+            if (dest.fullName && dest.fullName !== dest.name) {
+                const retryParams = `query=${encodeURIComponent(dest.fullName)}`;
+                const retryRes = await fetch(`${API_BASE_URL}/api/geocode?${retryParams}`);
+                if (retryRes.ok) {
+                    const retryData = await retryRes.json();
+                    return retryData.location;
+                }
+            }
+        }
+    } catch (e) {
+        // Silently fail
+    }
+    return '';
+}
+
+/**
+ * Returns the current year as a string.
+ */
+export function getCurrentYear(): string {
+    return new Date().getFullYear().toString();
 }
 
 export function generateCSV(waypoints: Waypoint[]): string {

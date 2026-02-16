@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { authService, Trip, API_BASE_URL } from '@/lib/auth-service';
-import { parseMapUrl, Waypoint, cleanWaypointName } from '@/lib/map-parser';
-import { Loader2, Trash2, ArrowRight, ExternalLink, StickyNote, Map, Edit2, Check, X, Plus, Download, Route } from 'lucide-react';
+import { parseMapUrl, Waypoint, cleanWaypointName, extractLocationFromNames, getCurrentYear, getLocationWithAPI } from '@/lib/map-parser';
+import { Loader2, Trash2, ArrowRight, ExternalLink, StickyNote, Map, Edit2, Check, X, Plus, Download, Route, Wand2, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 
 // Helper for resolving and parsing routes (shared between load and save)
-const resolveAndParseRouteHelper = async (rawUrl: string, useBrowser = false): Promise<Waypoint[]> => {
+const resolveAndParseRouteHelper = async (rawUrl: string, useBrowser = false): Promise<{ waypoints: Waypoint[], rawNames: string[] }> => {
     let targetUrl = rawUrl.trim();
-    if (!targetUrl) return [];
+    if (!targetUrl) return { waypoints: [], rawNames: [] };
 
     // Handle short IDs or URLs without protocol
     if (!targetUrl.startsWith('http')) {
@@ -27,7 +27,7 @@ const resolveAndParseRouteHelper = async (rawUrl: string, useBrowser = false): P
 
         if (!res.ok) {
             if (!useBrowser) return resolveAndParseRouteHelper(targetUrl, true);
-            return parseMapUrl(targetUrl);
+            return { waypoints: parseMapUrl(targetUrl), rawNames: [] };
         }
 
         const data = await res.json();
@@ -37,17 +37,18 @@ const resolveAndParseRouteHelper = async (rawUrl: string, useBrowser = false): P
             points.forEach((p, i) => {
                 if (data.waypointNames[i]) p.name = cleanWaypointName(data.waypointNames[i]);
             });
+            return { waypoints: points, rawNames: data.waypointNames };
         } else if (!useBrowser && !data.browserUsed) {
             const needsBetter = points.some(p => p.name.match(/^-?\d+\.\d+, -?\d+\.\d+$/) || p.name.startsWith('Waypoint '));
             if (needsBetter) {
                 return resolveAndParseRouteHelper(targetUrl, true);
             }
         }
-        return points;
+        return { waypoints: points, rawNames: [] };
     } catch (e) {
         console.error("Resolution error:", e);
         if (!useBrowser) return resolveAndParseRouteHelper(targetUrl, true);
-        return parseMapUrl(targetUrl);
+        return { waypoints: parseMapUrl(targetUrl), rawNames: [] };
     }
 };
 
@@ -63,6 +64,9 @@ export default function MyTrips() {
     const [editLocation, setEditLocation] = useState('');
     const [editNote, setEditNote] = useState('');
     const [editRouteSummary, setEditRouteSummary] = useState('');
+    const [isResolving, setIsResolving] = useState(false);
+    const [sortKey, setSortKey] = useState<keyof Trip>('id');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const router = useRouter();
 
     useEffect(() => {
@@ -78,48 +82,133 @@ export default function MyTrips() {
             setTrips(userTrips);
             setLoading(false);
 
-            // Backfill potentially missing route summaries
-            let tripsUpdated = false;
-            const updatedTrips = [...userTrips];
-
-            for (let i = 0; i < updatedTrips.length; i++) {
-                const trip = updatedTrips[i];
-                if (!trip.route_summary && trip.link) {
-                    try {
-                        const waypoints = await resolveAndParseRouteHelper(trip.link);
-                        if (waypoints.length > 0) {
-                            const newSummary = waypoints.map(wp => wp.name).join(' → ');
-
-                            // Save to DB
-                            const result = await authService.updateTrip(
-                                trip.id,
-                                user.id!,
-                                trip.name,
-                                trip.link,
-                                trip.year || '',
-                                trip.location || '',
-                                trip.note || '',
-                                newSummary
-                            );
-
-                            if (result.success) {
-                                updatedTrips[i] = { ...trip, route_summary: newSummary };
-                                tripsUpdated = true;
-                            }
-                        }
-                    } catch (e) {
-                        console.error(`Error auto-filling summary for trip ${trip.id}:`, e);
-                    }
-                }
-            }
-
-            if (tripsUpdated) {
-                setTrips(updatedTrips);
-            }
+            // Automatically resolve missing fields in the background
+            resolveMissingForTrips(userTrips, user.id!);
         };
 
         loadTrips();
     }, [router]);
+
+    const resolveMissingForTrips = async (tripsToFix: Trip[], userId: number) => {
+        for (const trip of tripsToFix) {
+            // Check if any critical field is missing
+            const needsYear = !trip.year || !trip.year.trim();
+            const needsLocation = !trip.location || !trip.location.trim();
+            const needsSummary = !trip.route_summary || !trip.route_summary.trim();
+
+            if ((needsYear || needsLocation || needsSummary) && trip.link?.trim()) {
+                try {
+                    const { waypoints, rawNames } = await resolveAndParseRouteHelper(trip.link);
+
+                    let updatedYear = trip.year || '';
+                    if (needsYear) updatedYear = getCurrentYear();
+
+                    let updatedRouteSummary = trip.route_summary || '';
+                    if (needsSummary && waypoints.length > 0) {
+                        updatedRouteSummary = waypoints.map(wp => wp.name).join(' → ');
+                    }
+
+                    let updatedLocation = trip.location || '';
+                    if (needsLocation) {
+                        let query: any = waypoints.length > 0 ? waypoints : rawNames.join(', ');
+                        if (!query || (typeof query === 'string' && !query.trim())) {
+                            if (waypoints.length > 0) {
+                                query = waypoints[waypoints.length - 1].name;
+                            }
+                        }
+                        const loc = await getLocationWithAPI(query);
+                        if (loc) updatedLocation = loc;
+                    }
+
+                    // Only update if something changed and we found data
+                    if (updatedYear !== trip.year || updatedLocation !== trip.location || updatedRouteSummary !== trip.route_summary) {
+                        const result = await authService.updateTrip(
+                            trip.id,
+                            userId,
+                            trip.name,
+                            trip.link,
+                            updatedYear,
+                            updatedLocation,
+                            trip.note || '',
+                            updatedRouteSummary
+                        );
+
+                        if (result.success) {
+                            setTrips(prev => prev.map(t => t.id === trip.id ? {
+                                ...t,
+                                year: updatedYear,
+                                location: updatedLocation,
+                                route_summary: updatedRouteSummary
+                            } : t));
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Failed to auto-resolve trip ${trip.id}`, e);
+                }
+            }
+        }
+    };
+
+    const toggleSort = (key: keyof Trip) => {
+        if (sortKey === key) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortOrder(key === 'created_at' || key === 'year' || key === 'id' ? 'desc' : 'asc');
+        }
+    };
+
+    const sortedTrips = [...trips].sort((a, b) => {
+        let valA = a[sortKey];
+        let valB = b[sortKey];
+
+        // Handle null/undefined
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+
+        if (typeof valA === 'number' && typeof valB === 'number') {
+            return sortOrder === 'asc' ? valA - valB : valB - valA;
+        }
+
+        const strA = String(valA).toLowerCase();
+        const strB = String(valB).toLowerCase();
+
+        if (strA === strB) {
+            // Secondary sort by created_at if values are same
+            return b.created_at - a.created_at;
+        }
+
+        return sortOrder === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+    });
+
+    const handleAutoFillFields = async () => {
+        if (!editLink.trim()) {
+            alert('Please enter a route link first');
+            return;
+        }
+        setIsResolving(true);
+        try {
+            const { waypoints, rawNames } = await resolveAndParseRouteHelper(editLink);
+
+            // Fill fields if they are currently empty
+            if (!editYear.trim()) setEditYear(getCurrentYear());
+
+
+            // Try to get precise location via API if we have enough info
+            const detectedLocation = await getLocationWithAPI(waypoints.length > 0 ? waypoints : rawNames.join(', '));
+            if (detectedLocation) {
+                setEditLocation(detectedLocation);
+            }
+
+            if (!editRouteSummary.trim() && waypoints.length > 0) {
+                setEditRouteSummary(waypoints.map(wp => wp.name).join(' → '));
+            }
+        } catch (e) {
+            console.error("Auto-fill failed", e);
+        } finally {
+            setIsResolving(false);
+        }
+    };
 
     const handleAddTrip = () => {
         const newTrip: Trip = {
@@ -155,7 +244,7 @@ export default function MyTrips() {
 
     const handleCancelEdit = () => {
         if (editingTrip === -1) {
-            setTrips(trips.filter(t => t.id !== -1));
+            setTrips(prev => prev.filter(t => t.id !== -1));
         }
         setEditingTrip(null);
         setEditName('');
@@ -171,16 +260,42 @@ export default function MyTrips() {
         if (!user) return;
 
         let finalRouteSummary = editRouteSummary;
-        if (!finalRouteSummary.trim() && editLink.trim()) {
-            try {
-                // Use shared helper
-                const waypoints = await resolveAndParseRouteHelper(editLink);
+        let finalYear = editYear;
+        let finalLocation = editLocation.trim();
 
-                if (waypoints.length > 0) {
+        if ((!finalRouteSummary.trim() || !finalYear.trim() || !finalLocation.trim()) && editLink.trim()) {
+            setIsResolving(true);
+            try {
+                const { waypoints, rawNames } = await resolveAndParseRouteHelper(editLink);
+
+                if (!finalRouteSummary.trim() && waypoints.length > 0) {
                     finalRouteSummary = waypoints.map(wp => wp.name).join(' → ');
+                    setEditRouteSummary(finalRouteSummary);
+                }
+
+                if (!finalYear.trim()) {
+                    finalYear = getCurrentYear();
+                    setEditYear(finalYear);
+                }
+
+                if (!finalLocation.trim()) {
+                    let query: any = waypoints.length > 0 ? waypoints : rawNames.join(', ');
+                    if (!query || (typeof query === 'string' && !query.trim())) {
+                        // If no raw names, use clean names from parsed waypoints
+                        if (waypoints.length > 0) {
+                            query = waypoints[waypoints.length - 1].name;
+                        }
+                    }
+                    const loc = await getLocationWithAPI(query);
+                    if (loc) {
+                        finalLocation = loc;
+                        setEditLocation(loc);
+                    }
                 }
             } catch (e) {
-                console.error("Failed to parse link for summary", e);
+                console.error("Failed to parse link for auto-fields", e);
+            } finally {
+                setIsResolving(false);
             }
         }
 
@@ -190,19 +305,36 @@ export default function MyTrips() {
                 alert('Name and Link are required');
                 return;
             }
-            const result = await authService.saveTrip(user.id!, editName, editLink, editYear, editLocation, editNote, finalRouteSummary);
+            const result = await authService.saveTrip(user.id!, editName, editLink, finalYear, finalLocation, editNote, finalRouteSummary);
             if (result.success && result.tripId) {
-                setTrips(trips.map(t => t.id === -1 ? { ...t, id: result.tripId!, name: editName, link: editLink, year: editYear, location: editLocation, note: editNote, route_summary: finalRouteSummary } : t));
+                setTrips(prev => prev.map(t => t.id === -1 ? {
+                    ...t,
+                    id: result.tripId!,
+                    name: editName,
+                    link: editLink,
+                    year: finalYear,
+                    location: finalLocation,
+                    note: editNote,
+                    route_summary: finalRouteSummary
+                } : t));
                 setEditingTrip(null);
             } else {
                 alert('Failed to save trip');
             }
         } else {
             // Update existing trip
-            const success = await authService.updateTrip(tripId, user.id!, editName, editLink, editYear, editLocation, editNote, finalRouteSummary);
+            const success = await authService.updateTrip(tripId, user.id!, editName, editLink, finalYear, finalLocation, editNote, finalRouteSummary);
 
             if (success.success) {
-                setTrips(trips.map(t => t.id === tripId ? { ...t, name: editName, link: editLink, year: editYear, location: editLocation, note: editNote, route_summary: finalRouteSummary } : t));
+                setTrips(prev => prev.map(t => t.id === tripId ? {
+                    ...t,
+                    name: editName,
+                    link: editLink,
+                    year: finalYear,
+                    location: finalLocation,
+                    note: editNote,
+                    route_summary: finalRouteSummary
+                } : t));
                 setEditingTrip(null);
             } else {
                 alert('Failed to update trip');
@@ -212,20 +344,30 @@ export default function MyTrips() {
 
     const handleDeleteTrip = async (tripId: number) => {
         const user = authService.getCurrentUser();
-        if (!user || !confirm('Are you sure you want to delete this trip?')) return;
+        if (!user) {
+            alert('Please sign in to delete trips');
+            return;
+        }
 
-        const success = await authService.deleteTrip(tripId, user.id!);
-        if (success) {
-            setTrips(trips.filter(t => t.id !== tripId));
-        } else {
-            alert('Failed to delete trip');
+        if (!confirm('Are you sure you want to delete this trip?')) return;
+
+        try {
+            const success = await authService.deleteTrip(tripId, user.id!);
+            if (success) {
+                setTrips(prevTrips => prevTrips.filter(t => t.id !== tripId));
+            } else {
+                alert('Failed to delete trip. Please try again.');
+            }
+        } catch (error) {
+            console.error('Delete trip error:', error);
+            alert('An error occurred while deleting the trip.');
         }
     };
 
     const handleExport = () => {
         if (trips.length === 0) return;
 
-        const headers = ['Trip Name', 'Route', 'Year', 'Location', 'Route Summary', 'Created', 'Notes'];
+        const headers = ['Name', 'Route', 'Year', 'Location', 'Itinerary', 'Created', 'Notes'];
         const csvContent = [
             headers.join(','),
             ...trips.map(trip => [
@@ -300,37 +442,119 @@ export default function MyTrips() {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="border-b border-white/10 bg-white/5">
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300 w-14">No.</th>
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300">Trip Name</th>
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300">Route Link</th>
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300 w-20">Year</th>
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300">Location</th>
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300">Route Summary</th>
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300 w-40 text-center">Actions</th>
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300 w-25">Created</th>
-                                        <th className="px-2 py-4 text-sm font-semibold text-gray-300 text-right">Notes</th>
+                                        <th
+                                            className="px-1 sm:px-2 py-3 sm:py-4 text-sm font-semibold text-gray-300 w-10 sm:w-14 cursor-pointer hover:text-white transition-colors text-center"
+                                            onClick={() => toggleSort('id')}
+                                        >
+                                            <div className="flex items-center justify-center gap-1">
+                                                No.
+                                                {sortKey === 'id' ? (
+                                                    sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                                                ) : <ArrowUpDown size={14} className="opacity-30" />}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-1 sm:px-2 py-3 sm:py-4 text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors"
+                                            onClick={() => toggleSort('name')}
+                                        >
+                                            <div className="flex items-center gap-1">
+                                                Name
+                                                {sortKey === 'name' ? (
+                                                    sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                                                ) : <ArrowUpDown size={14} className="opacity-30" />}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-0 sm:px-2 py-3 sm:py-4 text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors"
+                                            onClick={() => toggleSort('link')}
+                                        >
+                                            <div className="flex items-center gap-1">
+                                                Route
+                                                {sortKey === 'link' ? (
+                                                    sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                                                ) : <ArrowUpDown size={14} className="opacity-30" />}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-1 sm:px-2 py-3 sm:py-4 text-sm font-semibold text-gray-300 w-16 sm:w-20 text-center cursor-pointer hover:text-white transition-colors"
+                                            onClick={() => toggleSort('year')}
+                                        >
+                                            <div className="flex items-center justify-center gap-1">
+                                                Time
+                                                {sortKey === 'year' ? (
+                                                    sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                                                ) : <ArrowUpDown size={14} className="opacity-30" />}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-1 sm:px-2 py-3 sm:py-4 text-sm font-semibold text-gray-300 w-20 sm:w-24 cursor-pointer hover:text-white transition-colors"
+                                            onClick={() => toggleSort('location')}
+                                        >
+                                            <div className="flex items-center gap-1">
+                                                Location
+                                                {sortKey === 'location' ? (
+                                                    sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                                                ) : <ArrowUpDown size={14} className="opacity-30" />}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-1 sm:px-2 py-3 sm:py-4 text-sm font-semibold text-gray-300 cursor-pointer hover:text-white transition-colors"
+                                            onClick={() => toggleSort('route_summary')}
+                                        >
+                                            <div className="flex items-center gap-1">
+                                                Itinerary
+                                                {sortKey === 'route_summary' ? (
+                                                    sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                                                ) : <ArrowUpDown size={14} className="opacity-30" />}
+                                            </div>
+                                        </th>
+                                        <th className="px-1 sm:px-2 py-3 sm:py-4 text-sm font-semibold text-gray-300 w-24 sm:w-32 text-center">Actions</th>
+                                        <th
+                                            className="px-1 sm:px-2 py-3 sm:py-4 text-sm font-semibold text-gray-300 w-16 sm:w-20 cursor-pointer hover:text-white transition-colors"
+                                            onClick={() => toggleSort('created_at')}
+                                        >
+                                            <div className="flex items-center gap-1">
+                                                Created
+                                                {sortKey === 'created_at' ? (
+                                                    sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                                                ) : <ArrowUpDown size={14} className="opacity-30" />}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="px-1 sm:px-2 py-3 sm:py-4 text-sm font-semibold text-gray-300 w-24 sm:w-32 text-left cursor-pointer hover:text-white transition-colors"
+                                            onClick={() => toggleSort('note')}
+                                        >
+                                            <div className="flex items-center gap-1">
+                                                Notes
+                                                {sortKey === 'note' ? (
+                                                    sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                                                ) : <ArrowUpDown size={14} className="opacity-30" />}
+                                            </div>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
-                                    {trips.map((trip, index) => (
+                                    {sortedTrips.map((trip, index) => (
                                         <tr key={trip.id} className="hover:bg-white/5 transition-colors group">
-                                            <td className="px-2 py-4 text-sm text-gray-500">
+                                            <td className="px-1 sm:px-2 py-3 sm:py-4 text-sm text-gray-500 text-center">
                                                 {index + 1}
                                             </td>
-                                            <td className="px-2 py-4">
+                                            <td className="px-1 sm:px-2 py-3 sm:py-4">
                                                 {editingTrip === trip.id ? (
                                                     <input
                                                         type="text"
                                                         value={editName}
                                                         onChange={(e) => setEditName(e.target.value)}
-                                                        placeholder="Trip Name"
+                                                        placeholder="Name"
                                                         className="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                                     />
                                                 ) : (
-                                                    <span className="font-medium text-white block mb-1">{trip.name}</span>
+                                                    <div className="font-medium text-white line-clamp-2 break-words" title={trip.name}>
+                                                        {trip.name}
+                                                    </div>
                                                 )}
                                             </td>
-                                            <td className="px-2 py-4">
+                                            <td className="px-0 sm:px-2 py-3 sm:py-4">
                                                 {editingTrip === trip.id ? (
                                                     <input
                                                         type="text"
@@ -346,24 +570,24 @@ export default function MyTrips() {
                                                         rel="noopener noreferrer"
                                                         className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 text-sm max-w-[200px] truncate"
                                                     >
-                                                        <ExternalLink size={14} /> Open Map
+                                                        <ExternalLink size={14} /> <span className="hidden md:inline">Open </span>Map
                                                     </a>
                                                 )}
                                             </td>
-                                            <td className="px-2 py-4">
+                                            <td className="px-1 sm:px-2 py-3 sm:py-4 text-center">
                                                 {editingTrip === trip.id ? (
                                                     <input
                                                         type="text"
                                                         value={editYear}
                                                         onChange={(e) => setEditYear(e.target.value)}
                                                         placeholder="Year"
-                                                        className="w-24 bg-white/10 border border-white/20 rounded px-2 py-1 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                                                        className="w-14 bg-white/10 border border-white/20 rounded px-1 py-1 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm text-center"
                                                     />
                                                 ) : (
                                                     <span className="text-gray-300 text-sm">{trip.year}</span>
                                                 )}
                                             </td>
-                                            <td className="px-2 py-4">
+                                            <td className="px-1 sm:px-2 py-3 sm:py-4">
                                                 {editingTrip === trip.id ? (
                                                     <input
                                                         type="text"
@@ -373,10 +597,12 @@ export default function MyTrips() {
                                                         className="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
                                                     />
                                                 ) : (
-                                                    <span className="text-gray-300 text-sm">{trip.location}</span>
+                                                    <div className="text-gray-300 text-sm max-w-[100px] line-clamp-2 break-words" title={trip.location || ''}>
+                                                        {trip.location || '-'}
+                                                    </div>
                                                 )}
                                             </td>
-                                            <td className="px-2 py-4">
+                                            <td className="px-1 sm:px-2 py-3 sm:py-4">
                                                 {editingTrip === trip.id ? (
                                                     <input
                                                         type="text"
@@ -387,25 +613,31 @@ export default function MyTrips() {
                                                     />
                                                 ) : (
                                                     trip.route_summary ? (
-                                                        <div className="flex items-start gap-2 text-gray-400 text-sm" title={trip.route_summary}>
+                                                        <div className="flex items-start gap-2 text-gray-400 text-sm w-full" title={trip.route_summary}>
                                                             <Route size={14} className="mt-0.5 shrink-0" />
-                                                            <span className="line-clamp-2">{trip.route_summary}</span>
+                                                            <div
+                                                                className="line-clamp-2 break-words leading-tight overflow-hidden"
+                                                                style={{ display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}
+                                                            >
+                                                                {trip.route_summary}
+                                                            </div>
                                                         </div>
                                                     ) : (
                                                         <span className="text-gray-600 text-sm italic">No summary</span>
                                                     )
                                                 )}
                                             </td>
-                                            <td className="px-2 py-4">
-                                                <div className="flex justify-start gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <td className="px-1 sm:px-2 py-3 sm:py-4">
+                                                <div className="flex justify-start gap-2 transition-opacity">
                                                     {editingTrip === trip.id ? (
                                                         <>
                                                             <button
                                                                 onClick={() => handleSaveEdit(trip.id)}
-                                                                className="p-2 hover:bg-emerald-500/20 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors"
+                                                                disabled={isResolving}
+                                                                className="p-2 hover:bg-emerald-500/20 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-50"
                                                                 title="Save"
                                                             >
-                                                                <Check size={18} />
+                                                                {isResolving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
                                                             </button>
                                                             <button
                                                                 onClick={handleCancelEdit}
@@ -442,21 +674,21 @@ export default function MyTrips() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-2 py-4 text-sm text-gray-500">
+                                            <td className="px-1 sm:px-2 py-3 sm:py-4 text-sm text-gray-500">
                                                 {new Date(trip.created_at).toLocaleDateString()}
                                             </td>
-                                            <td className="px-2 py-4 text-right">
+                                            <td className="px-1 sm:px-2 py-3 sm:py-4 text-left">
                                                 {editingTrip === trip.id ? (
                                                     <input
                                                         type="text"
                                                         value={editNote}
                                                         onChange={(e) => setEditNote(e.target.value)}
-                                                        className="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                        className="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
                                                     />
                                                 ) : (
                                                     trip.note ? (
-                                                        <div className="flex items-start justify-end text-gray-400 text-sm">
-                                                            <span className="line-clamp-2 text-right">{trip.note}</span>
+                                                        <div className="flex items-start justify-start text-gray-400 text-sm">
+                                                            <span className="line-clamp-1 text-left max-w-[120px] truncate" title={trip.note}>{trip.note}</span>
                                                         </div>
                                                     ) : (
                                                         <span className="text-gray-600 text-sm italic">No notes</span>

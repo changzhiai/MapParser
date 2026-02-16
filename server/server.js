@@ -21,7 +21,7 @@ const PORT = process.env.SERVER_PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
 const transporter = nodemailer.createTransport({
     service: process.env.EMAIL_SERVICE || 'hotmail',
@@ -109,7 +109,7 @@ app.post('/api/google-login', async (req, res) => {
         } else {
             const ticket = await googleClient.verifyIdToken({
                 idToken: token,
-                audience: process.env.GOOGLE_CLIENT_ID
+                audience: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
             });
             const payload = ticket.getPayload();
             email = payload.email;
@@ -148,7 +148,7 @@ app.post('/api/apple-login', async (req, res) => {
 
     try {
         const { sub: appleId, email } = await appleSignin.verifyIdToken(token, {
-            audience: process.env.APPLE_CLIENT_ID,
+            audience: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID,
             ignoreExpiration: false,
         });
 
@@ -449,6 +449,63 @@ app.get('/api/resolve', async (req, res) => {
         // If basic fetch failed, try one last desperation attempt with browser? 
         // Or just fail. Let's just fail for now to avoid infinite hangs.
         return res.status(500).json({ error: 'Failed to resolve URL' });
+    }
+});
+
+app.get('/api/geocode', async (req, res) => {
+    const { query, lat, lng } = req.query;
+
+    try {
+        let url = '';
+        if (lat && lng) {
+            // Reverse Geocoding
+            url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=en`;
+        } else if (query) {
+            // Forward Geocoding
+            url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1&accept-language=en`;
+        } else {
+            return res.status(400).json({ error: 'Missing query or coordinates' });
+        }
+
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'MapParser/1.0 (contact: info@mapparser.travel-tracker.org)'
+            }
+        });
+        const data = await response.json();
+
+        let location = '';
+        let address = null;
+
+        if (lat && lng && data.address) {
+            address = data.address;
+        } else if (query && Array.isArray(data) && data.length > 0) {
+            address = data[0].address;
+        }
+
+        if (address) {
+            // Broaden the search for state/province across multiple Nominatim fields
+            // Fallback chain: State/Province -> Region -> County/District -> City/Town
+            const state = address.state || address.province || address.region || address.state_district ||
+                address.county || address.municipality || address.city || address.town || address.village || '';
+            const country = address.country_code ? address.country_code.toUpperCase() : (address.country || '');
+
+            if (state && country) {
+                location = `${state}, ${country}`;
+            } else {
+                location = country || state || '';
+            }
+
+            res.json({
+                location: location,
+                full_address: (lat && lng ? data.display_name : data[0]?.display_name) || ''
+            });
+        } else {
+            res.status(404).json({ error: 'No results found' });
+        }
+    } catch (error) {
+        console.error("Geocoding failure:", error);
+        res.status(500).json({ error: 'Geocoding failed' });
     }
 });
 

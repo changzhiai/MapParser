@@ -216,9 +216,9 @@ function SignInContent({ isOpen, onClose, onLoginSuccess }: SignInModalProps) {
 
                                 <AppleSignin
                                     authOptions={{
-                                        clientId: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || 'org.traveltracker',
+                                        clientId: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || 'org.traveltracker.mapparse',
                                         scope: 'email name',
-                                        redirectURI: 'https://mapparser.travel-tracker.org/api/apple-callback',
+                                        redirectURI: process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || 'https://mapparser.travel-tracker.org/api/apple-callback',
                                         state: 'origin:web',
                                         nonce: 'nonce',
                                         usePopup: true,

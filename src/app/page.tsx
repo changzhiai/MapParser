@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { generateCSV, generateKML, parseMapUrl, Waypoint, cleanWaypointName } from '@/lib/map-parser';
+import { generateCSV, generateKML, parseMapUrl, Waypoint, cleanWaypointName, extractLocationFromNames, getCurrentYear, getLocationWithAPI } from '@/lib/map-parser';
 import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map, LogIn, User as UserIcon, LogOut, Bookmark, Plus, Trash2, StickyNote, Route } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
@@ -38,6 +38,7 @@ function MapParserContent() {
   const [isSavingTrip, setIsSavingTrip] = useState(false);
   const [tripNote, setTripNote] = useState('');
   const [tripName, setTripName] = useState('');
+  const [rawWaypointNames, setRawWaypointNames] = useState<string[]>([]);
 
   const handleAnalyze = async (urlOverride?: string, useBrowser: boolean = false) => {
     let targetUrl = (urlOverride || url).trim();
@@ -73,23 +74,25 @@ function MapParserContent() {
 
       // Enhanced: Overlay scraped names if available from browser mode
       if (data.waypointNames && Array.isArray(data.waypointNames)) {
+        setRawWaypointNames(data.waypointNames);
         points.forEach((p, i) => {
           if (data.waypointNames[i]) {
             p.name = cleanWaypointName(data.waypointNames[i]);
           }
         });
-      } else if (!useBrowser) {
-        // If we didn't use browser mode, check if we got poor quality names
-        // Pattern matches: "35.1234, -80.1234" or "Waypoint 1"
-        const needsBetterNames = points.some(p =>
-          p.name.match(/^-?\d+\.\d+, -?\d+\.\d+$/) ||
-          p.name.startsWith('Waypoint ')
-        );
+      } else {
+        setRawWaypointNames([]);
+        if (!useBrowser) {
+          // If we didn't use browser mode, check if we got poor quality names
+          const needsBetterNames = points.some(p =>
+            p.name.match(/^-?\d+\.\d+, -?\d+\.\d+$/) ||
+            p.name.startsWith('Waypoint ')
+          );
 
-        if (needsBetterNames) {
-          console.log("Poor quality names detected, retrying with browser mode...");
-          // Recursive call with browser mode enabled
-          return handleAnalyze(targetUrl, true);
+          if (needsBetterNames) {
+            console.log("Poor quality names detected, retrying with browser mode...");
+            return handleAnalyze(targetUrl, true);
+          }
         }
       }
 
@@ -171,12 +174,24 @@ function MapParserContent() {
     }
 
     setIsSavingTrip(true);
-    const result = await authService.saveTrip(user.id!, tripName, url, '', '', tripNote);
+    const year = getCurrentYear();
+
+    // Exclusively use OpenStreetMap API for location
+    let locQuery: any = waypoints.length > 0 ? waypoints : rawWaypointNames.join(', ');
+    if (!locQuery || (typeof locQuery === 'string' && !locQuery.trim())) {
+      if (waypoints.length > 0) {
+        locQuery = waypoints[waypoints.length - 1].name;
+      }
+    }
+    const location = await getLocationWithAPI(locQuery);
+
+    const result = await authService.saveTrip(user.id!, tripName, url, year, location, tripNote);
     setIsSavingTrip(false);
 
     if (result.success) {
       setTripNote('');
       setTripName('');
+      setRawWaypointNames([]);
       fetchTrips(user.id!);
     } else {
       alert(result.error || 'Failed to save trip');
