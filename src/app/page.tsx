@@ -101,17 +101,26 @@ function MapParserContent() {
         throw new Error('No waypoints found. Ensure it is a valid Directions link.');
       }
 
-      // 3. Post-processing: Reverse geocode coordinate-only names
+      // 3. Post-processing: Reverse geocode coordinate-only names OR names that are just numbers (incomplete addresses)
       const updatedPoints = await Promise.all(points.map(async (p) => {
         const isCoordinateName = p.name.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/);
-        if (isCoordinateName && p.coords) {
+        const isNumericName = p.name.match(/^\d+$/);
+
+        if ((isCoordinateName || isNumericName) && p.coords) {
           try {
             const geoRes = await fetch(`${API_BASE_URL}/api/geocode?lat=${p.coords.lat}&lng=${p.coords.lng}`);
             if (geoRes.ok) {
               const geoData = await geoRes.json();
               // Use the first part of full_address or location
               if (geoData.full_address) {
-                const resolvedName = geoData.full_address.split(',')[0].trim();
+                const parts = geoData.full_address.split(',').map((s: string) => s.trim());
+                let resolvedName = parts[0];
+
+                // If the first part is just a number (house number), append the street name
+                if (resolvedName.match(/^\d+$/) && parts.length > 1) {
+                  resolvedName = `${resolvedName} ${parts[1]}`;
+                }
+
                 return { ...p, name: resolvedName, fullName: geoData.full_address };
               }
             }

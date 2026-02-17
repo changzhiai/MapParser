@@ -397,11 +397,13 @@ const resolveWithBrowser = async (url) => {
                     if (inputs.length === 0) return false;
 
                     // Check if at least one input has a "resolved" name (not coordinates)
-                    return inputs.some(i => {
-                        const v = i.value || '';
-                        return v.length > 5 && !v.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/);
-                    }) || document.querySelectorAll('.IA0p8e, .drp-location-name').length > 0;
-                }, { timeout: 12000 }).catch(() => { });
+                    // AND ensure we don't have short numeric-only values (like "1535") which indicate incomplete loading
+                    const values = inputs.map(i => i.value || '').filter(v => v);
+                    const hasPendingNumbers = values.some(v => v.match(/^\d+$/) && v.length < 8);
+                    const hasResolved = values.some(v => v.length > 5 && !v.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/) && !v.match(/^\d+$/));
+
+                    return hasResolved && !hasPendingNumbers;
+                }, { timeout: 25000 }).catch(() => { });
 
                 await delay(3500);
             } catch (e) { }
@@ -418,9 +420,8 @@ const resolveWithBrowser = async (url) => {
                     // Priority: Non-coord value > Non-coord aria-label > anything else
                     const cleanedAria = aria.replace(/^(Starting point|Destination|Via|Waypoints|Choose) /, '').trim();
 
-                    if (val && !isCoord(val)) return val;
-                    if (cleanedAria && !isCoord(cleanedAria)) return cleanedAria;
-                    return val || cleanedAria;
+                    const res = (val && !isCoord(val)) ? val : (cleanedAria && !isCoord(cleanedAria) ? cleanedAria : (val || cleanedAria));
+                    return res;
                 };
 
                 let inputs = Array.from(document.querySelectorAll('input.ZBTq6e, .JuLCid input, div[id^="directions-searchbox"] input, input[aria-label*="point"], input[aria-label*="Destination"]'));
