@@ -85,7 +85,10 @@ npm install
 npm run build
 
 # Restart Everything
-pm2 restart all
+pm2 restart ecosystem.config.js --env production
+
+# If starting for the first time:
+# pm2 start ecosystem.config.js --env production
 ```
 
 ## 6. Verify
