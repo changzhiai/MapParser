@@ -1,6 +1,6 @@
-# Redeployment and Branch Shifting Guide
+# Redeployment and Branch Shifting Guide (Dual Port Setup)
 
-This guide explains how to update the deployment on the AWS server or shift between branches (e.g., from `main` to `dev`).
+This guide explains how to update the deployment on the AWS server (Port 3002 for Frontend, 4002 for Backend).
 
 ## 1. Connect to the Server
 ```bash
@@ -9,39 +9,90 @@ ssh ubuntu@54.151.8.244
 
 ## 2. Navigate and Switch Branch
 ```bash
-cd ~/map-parser  # Adjust path if different
+cd ~/MapParser
 
 # Update local git info
 git fetch origin
 
 # Switch to the desired branch (e.g., dev)
 git checkout dev
-
-# Pull latest changes
 git pull origin dev
 ```
 
 ## 3. Update Environment Variables
-If new features (like Apple Sign-In) were added, update the `.env.local` file:
+Ensure `.env.local` ON THE SERVER has these settings:
 ```bash
-nano .env.local
+# Frontend Port
+PORT=3002
+
+# Backend Configuration
+SERVER_PORT=4002
+NEXT_PUBLIC_API_BASE_URL=https://mapparser.travel-tracker.org
+
+# Apple Redirect (Must match dev portal)
+NEXT_PUBLIC_APPLE_REDIRECT_URI=https://mapparser.travel-tracker.org/api/apple-callback
+
+# Email Configuration
+EMAIL_SERVICE=gmail
+EMAIL_USER=changzhiai@gmail.com
+EMAIL_PASS=your_app_password_here
 ```
-Ensure it contains all required keys from `.env.local.template`.
 
-## 4. Install, Build, and Restart
+## 4. Update Nginx Configuration
+Your Nginx config (`/etc/nginx/sites-available/map-parser`) **must** include the API route handler. 
+Edit with: `sudo nano /etc/nginx/sites-available/map-parser`
+
+```nginx
+server {
+    server_name mapparser.travel-tracker.org;
+
+    # Frontend (Next.js)
+    location / {
+        proxy_pass http://localhost:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Backend API (Express Server)
+    location /api/ {
+        proxy_pass http://localhost:4002;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    listen 443 ssl; # ... Certbot configuration follows
+}
+```
+After editing, run:
 ```bash
-# Install potential new dependencies
-npm install
+sudo nginx -t
+sudo systemctl reload nginx
+```
 
-# Build the frontend (Next.js)
+## 5. Build and Restart
+```bash
+# Install & Build Frontend
+npm install
 npm run build
 
-# Restart the application and server using PM2
-pm2 restart map-parser
+# Restart Everything
+pm2 restart all
 ```
 
-## 5. Verify
-Check the logs if something goes wrong:
+## 6. Verify
 ```bash
-pm2 logs map-parser
+pm2 status
+# You should see 'map-parser' (3002) and 'map-parser-backend' (4002) both 'online'
+
+# Check logs if there are issues
+pm2 logs
 ```
