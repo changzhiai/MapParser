@@ -61,22 +61,56 @@ export function parseMapUrl(url: string): Waypoint[] {
 
         const coords: { lat: number, lng: number }[] = [];
         if (dataString) {
-            // Pattern A: !1d(lng)!2d(lat)
-            const regex1d2d = /!1d(-?\d+(\.\d+)?)!2d(-?\d+(\.\d+)?)/g;
-            let match;
-            while ((match = regex1d2d.exec(dataString)) !== null) {
-                const lng = parseFloat(match[1]);
-                const lat = parseFloat(match[3]);
-                coords.push({ lat, lng });
+            // For directions links, we want to be careful to skip "via" points (dragged routes)
+            // Waypoints in !4m blocks usually use !2m2!1d(lng)!2d(lat)
+            const isDirections = path.includes('/dir/');
+
+            if (isDirections) {
+                // Strategy: Split data string into blocks that each represent one waypoint
+                // Waypoint blocks usually start with !1m and are top-level children of the !4m directions container
+                const blocks = dataString.split(/!1m(?=\d+!1m1!1s|!2m2!1d)/);
+
+                for (const block of blocks) {
+                    // In each block, take ONLY the first primary coordinate pair
+                    // Primary coords are almost always !2m2!1d...
+                    const mainMatch = /!2m2!1d(-?\d+(\.\d+)?)!2d(-?\d+(\.\d+)?)/.exec(block);
+                    if (mainMatch) {
+                        coords.push({
+                            lng: parseFloat(mainMatch[1]),
+                            lat: parseFloat(mainMatch[3])
+                        });
+                    } else {
+                        // Fallback: any coord in this block if !2m2 is missing
+                        const anyMatch = /!1d(-?\d+(\.\d+)?)!2d(-?\d+(\.\d+)?)/.exec(block);
+                        if (anyMatch) {
+                            coords.push({
+                                lng: parseFloat(anyMatch[1]),
+                                lat: parseFloat(anyMatch[3])
+                            });
+                        }
+                    }
+                }
             }
 
-            // Pattern B: !3d(lat)!4d(lng) - usually for single places or specific viewports, but sometimes used in routes
+            // If no coords found yet or not directions, use global fallback search
             if (coords.length === 0) {
-                const regex3d4d = /!3d(-?\d+(\.\d+)?)!4d(-?\d+(\.\d+)?)/g;
-                while ((match = regex3d4d.exec(dataString)) !== null) {
-                    const lat = parseFloat(match[1]);
-                    const lng = parseFloat(match[3]);
+                // Pattern A: !1d(lng)!2d(lat)
+                const regex1d2d = /!1d(-?\d+(\.\d+)?)!2d(-?\d+(\.\d+)?)/g;
+                let match;
+                while ((match = regex1d2d.exec(dataString)) !== null) {
+                    const lng = parseFloat(match[1]);
+                    const lat = parseFloat(match[3]);
                     coords.push({ lat, lng });
+                }
+
+                // Pattern B: !3d(lat)!4d(lng)
+                if (coords.length === 0) {
+                    const regex3d4d = /!3d(-?\d+(\.\d+)?)!4d(-?\d+(\.\d+)?)/g;
+                    while ((match = regex3d4d.exec(dataString)) !== null) {
+                        const lat = parseFloat(match[1]);
+                        const lng = parseFloat(match[3]);
+                        coords.push({ lat, lng });
+                    }
                 }
             }
         }
@@ -90,7 +124,9 @@ export function parseMapUrl(url: string): Waypoint[] {
         }
 
         // 3. Merge
-        const count = Math.max(names.length, coords.length);
+        // Priority: Use names as the source of truth for the number of waypoints if they exist,
+        // as Google Maps URLs always have a 1:1 segment-to-waypoint mapping in the path.
+        const count = names.length > 0 ? names.length : coords.length;
         const waypoints: Waypoint[] = [];
 
         for (let i = 0; i < count; i++) {
@@ -102,7 +138,7 @@ export function parseMapUrl(url: string): Waypoint[] {
                 fullName = '';
             }
 
-            const coord = coords[i]; // 1:1 mapping
+            const coord = coords[i];
 
             if (!name) {
                 if (coord) {

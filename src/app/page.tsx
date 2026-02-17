@@ -41,6 +41,7 @@ function MapParserContent() {
   const [rawWaypointNames, setRawWaypointNames] = useState<string[]>([]);
 
   const handleAnalyze = async (urlOverride?: string, useBrowser: boolean = false) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     let targetUrl = (urlOverride || url).trim();
     if (!targetUrl) return;
 
@@ -100,11 +101,32 @@ function MapParserContent() {
         throw new Error('No waypoints found. Ensure it is a valid Directions link.');
       }
 
-      setWaypoints(points);
+      // 3. Post-processing: Reverse geocode coordinate-only names
+      const updatedPoints = await Promise.all(points.map(async (p) => {
+        const isCoordinateName = p.name.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/);
+        if (isCoordinateName && p.coords) {
+          try {
+            const geoRes = await fetch(`${API_BASE_URL}/api/geocode?lat=${p.coords.lat}&lng=${p.coords.lng}`);
+            if (geoRes.ok) {
+              const geoData = await geoRes.json();
+              // Use the first part of full_address or location
+              if (geoData.full_address) {
+                const resolvedName = geoData.full_address.split(',')[0].trim();
+                return { ...p, name: resolvedName, fullName: geoData.full_address };
+              }
+            }
+          } catch (e) {
+            console.error("Failed to reverse geocode", p.name, e);
+          }
+        }
+        return p;
+      }));
+
+      setWaypoints(updatedPoints);
 
       // If we have names but no coordinates (e.g. from a raw directions link), switch to Google Maps 
       // because OSM (Leaflet) requires coordinates, while Google Directions Service can geocode names.
-      if (points.length > 0 && !points.some(wp => wp.coords)) {
+      if (updatedPoints.length > 0 && !updatedPoints.some(wp => wp.coords)) {
         setMapProvider('google');
       }
 
@@ -155,6 +177,22 @@ function MapParserContent() {
 
     window.addEventListener('auth-change', checkUser);
     return () => window.removeEventListener('auth-change', checkUser);
+  }, []);
+
+  useEffect(() => {
+    const handleReset = () => {
+      setUrl('');
+      setWaypoints([]);
+      setError('');
+      setAnalyzed(false);
+      setRawWaypointNames([]);
+      setTripName('');
+      setTripNote('');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.addEventListener('map-reset', handleReset);
+    return () => window.removeEventListener('map-reset', handleReset);
   }, []);
 
   const fetchTrips = async (userId: number) => {

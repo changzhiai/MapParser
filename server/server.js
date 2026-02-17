@@ -345,36 +345,91 @@ const resolveWithBrowser = async (url) => {
 
         try {
             const start = Date.now();
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10000 });
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+            // 1. Handle Cookie Consent (if present)
+            try {
+                // Wait a bit for the consent dialog
+                await delay(1500);
+                const consentSelectors = [
+                    'button[aria-label^="Accept"]',
+                    'button[aria-label*="Agree"]',
+                    'form[action*="consent"] button',
+                    '#consent-bump button',
+                    '.VfPpkd-LgbsSe',
+                    'button.VfPpkd-LgbsSe'
+                ];
+
+                for (const selector of consentSelectors) {
+                    const btn = await page.$(selector);
+                    if (btn) {
+                        console.log(`[Browser] Clicking consent button: ${selector}`);
+                        await btn.click();
+                        await delay(1500);
+                        // Refresh or wait to be sure we are on the actual map
+                        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10000 });
+                        break;
+                    }
+                }
+            } catch (e) {
+                // Ignore consent errors
+            }
 
             try {
-                // Wait for either the inputs OR the directions panel content
+                // 2. Wait for either the inputs OR the directions panel content
                 await page.waitForFunction(() => {
-                    return document.querySelectorAll('input.ZBTq6e').length > 0 ||
-                        document.querySelectorAll('.IA0p8e').length > 0 ||
-                        document.querySelectorAll('.drp-location-name').length > 0 ||
-                        document.querySelectorAll('div[id^="directions-searchbox"] input').length > 0;
-                }, { timeout: 4000 });
+                    const hasInputs = document.querySelectorAll('input.ZBTq6e').length > 0;
+                    const hasAlternativeInputs = document.querySelectorAll('div[id^="directions-searchbox"] input').length > 0;
+                    const hasNames = document.querySelectorAll('.IA0p8e, .drp-location-name, .tactile-searchbox-input').length > 0;
+                    return hasInputs || hasAlternativeInputs || hasNames;
+                }, { timeout: 8000 });
+
+                // Extra delay to allow Google to resolve coordinates to names in the UI
+                await delay(3000);
             } catch (e) {
-                // Ignore timeout
+                console.log('[Browser] Timeout waiting for elements, continuing with extraction...');
             }
 
             // Extract waypoint names
             const waypointNames = await page.evaluate(() => {
-                let inputs = Array.from(document.querySelectorAll('input.ZBTq6e'));
+                // Helper to get name from an input or element
+                const getName = (el) => {
+                    if (!el) return null;
+                    const val = (el.tagName === 'INPUT' ? el.value : el.innerText) || '';
+
+                    // Try aria-label first as it's often more descriptive ("Destination Newfound Gap...")
+                    const aria = el.getAttribute('aria-label');
+                    if (aria && (aria.includes('point') || aria.includes('Destination') || aria.includes('Via'))) {
+                        const cleaned = aria.replace(/^(Starting point|Destination|Via|Waypoints|Choose) /, '').trim();
+                        // If cleaned aria-label is better than value (i.e. not coordinates), use it
+                        if (cleaned && !cleaned.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/)) return cleaned;
+                    }
+
+                    if (val && !val.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/)) return val;
+                    return val;
+                };
+
+                // Aggressive input collection
+                let inputs = Array.from(document.querySelectorAll('input.ZBTq6e, .JuLCid input, div[id^="directions-searchbox"] input'));
+
+                // Final fallback: any input that looks like a directions input
                 if (inputs.length === 0) {
-                    inputs = Array.from(document.querySelectorAll('div[id^="directions-searchbox"] input'));
+                    inputs = Array.from(document.querySelectorAll('input')).filter(i => {
+                        const aria = i.getAttribute('aria-label') || '';
+                        return aria.includes('point') || aria.includes('Destination') || aria.includes('Via');
+                    });
                 }
 
-                let names = inputs.map(input => input.value).filter(val => val && val.trim() !== '');
+                let names = inputs.map(getName).filter(val => val && val.trim() !== '' && val !== "''");
 
+                // Fallback to text elements in the panel if inputs yield nothing
                 if (names.length === 0) {
-                    const waypointElements = Array.from(document.querySelectorAll('.IA0p8e, .drp-location-name, div[aria-label^="Destination"], div[aria-label^="Starting point"]'));
+                    const waypointElements = Array.from(document.querySelectorAll('.IA0p8e, .drp-location-name, div[aria-label^="Destination"], div[aria-label^="Starting point"], .UgZ9Y .Y69Xre'));
                     names = waypointElements.map(el => {
                         const aria = el.getAttribute('aria-label');
                         if (aria) return aria.replace(/^(Starting point|Destination|Via) /, '');
                         return el.innerText;
-                    }).filter(val => val && val.trim() !== '');
+                    }).filter(val => val && val.trim() !== '' && val !== "''");
                 }
 
                 return names;
