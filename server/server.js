@@ -306,7 +306,12 @@ const getBrowser = async () => {
         if (!globalBrowser || !globalBrowser.isConnected()) {
             console.log('[Browser] Launching new instance...');
             globalBrowser = await puppeteer.launch({
-                headless: true
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--lang=en-US,en'
+                ]
             });
 
             globalBrowser.on('disconnected', () => {
@@ -325,9 +330,14 @@ const getBrowser = async () => {
 // Helper for browser-based resolution
 const resolveWithBrowser = async (url) => {
     let page;
+    let context;
     try {
         const browser = await getBrowser();
-        page = await browser.newPage();
+        context = await browser.createBrowserContext(); // Fresh context for each request
+        page = await context.newPage();
+
+        await page.setViewport({ width: 1280, height: 800 });
+        await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
 
         // Optimizations: skip assets
         await page.setRequestInterception(true);
@@ -340,17 +350,26 @@ const resolveWithBrowser = async (url) => {
             }
         });
 
-        // Set a realistic modern user agent
-        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36');
+        // Use a Windows User Agent to ensure standard desktop UI
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
 
         try {
             const start = Date.now();
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
-            // 1. Handle Cookie Consent (if present)
+            // Force English/US for consistent names across server locations
+            let targetUrl = url;
             try {
-                // Wait a bit for the consent dialog
-                await delay(1500);
+                const u = new URL(url);
+                u.searchParams.set('hl', 'en');
+                u.searchParams.set('gl', 'us');
+                targetUrl = u.toString();
+            } catch (e) { }
+
+            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+
+            // 1. Handle Cookie Consent
+            try {
+                await delay(2000);
                 const consentSelectors = [
                     'button[aria-label^="Accept"]',
                     'button[aria-label*="Agree"]',
@@ -363,89 +382,71 @@ const resolveWithBrowser = async (url) => {
                 for (const selector of consentSelectors) {
                     const btn = await page.$(selector);
                     if (btn) {
-                        console.log(`[Browser] Clicking consent button: ${selector}`);
                         await btn.click();
-                        await delay(1500);
-                        // Refresh or wait to be sure we are on the actual map
-                        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10000 });
+                        await delay(2000);
+                        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
                         break;
                     }
                 }
-            } catch (e) {
-                // Ignore consent errors
-            }
+            } catch (e) { }
 
             try {
-                // 2. Wait for either the inputs OR the directions panel content
+                // 2. Wait for Names to resolve (crucial for AWS)
                 await page.waitForFunction(() => {
-                    const hasInputs = document.querySelectorAll('input.ZBTq6e').length > 0;
-                    const hasAlternativeInputs = document.querySelectorAll('div[id^="directions-searchbox"] input').length > 0;
-                    const hasNames = document.querySelectorAll('.IA0p8e, .drp-location-name, .tactile-searchbox-input').length > 0;
-                    return hasInputs || hasAlternativeInputs || hasNames;
-                }, { timeout: 8000 });
+                    const inputs = Array.from(document.querySelectorAll('input.ZBTq6e, div[id^="directions-searchbox"] input, .tactile-searchbox-input'));
+                    if (inputs.length === 0) return false;
 
-                // Extra delay to allow Google to resolve coordinates to names in the UI
-                await delay(3000);
-            } catch (e) {
-                console.log('[Browser] Timeout waiting for elements, continuing with extraction...');
-            }
+                    // Check if at least one input has a "resolved" name (not coordinates)
+                    return inputs.some(i => {
+                        const v = i.value || '';
+                        return v.length > 5 && !v.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/);
+                    }) || document.querySelectorAll('.IA0p8e, .drp-location-name').length > 0;
+                }, { timeout: 12000 }).catch(() => { });
+
+                await delay(3500);
+            } catch (e) { }
 
             // Extract waypoint names
             const waypointNames = await page.evaluate(() => {
-                // Helper to get name from an input or element
                 const getName = (el) => {
                     if (!el) return null;
                     const val = (el.tagName === 'INPUT' ? el.value : el.innerText) || '';
+                    const aria = el.getAttribute('aria-label') || '';
 
-                    // Try aria-label first as it's often more descriptive ("Destination Newfound Gap...")
-                    const aria = el.getAttribute('aria-label');
-                    if (aria && (aria.includes('point') || aria.includes('Destination') || aria.includes('Via'))) {
-                        const cleaned = aria.replace(/^(Starting point|Destination|Via|Waypoints|Choose) /, '').trim();
-                        // If cleaned aria-label is better than value (i.e. not coordinates), use it
-                        if (cleaned && !cleaned.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/)) return cleaned;
-                    }
+                    const isCoord = (s) => s && s.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/);
 
-                    if (val && !val.match(/^-?\d+\.\d+,\s*-?\d+\.\d+$/)) return val;
-                    return val;
+                    // Priority: Non-coord value > Non-coord aria-label > anything else
+                    const cleanedAria = aria.replace(/^(Starting point|Destination|Via|Waypoints|Choose) /, '').trim();
+
+                    if (val && !isCoord(val)) return val;
+                    if (cleanedAria && !isCoord(cleanedAria)) return cleanedAria;
+                    return val || cleanedAria;
                 };
 
-                // Aggressive input collection
-                let inputs = Array.from(document.querySelectorAll('input.ZBTq6e, .JuLCid input, div[id^="directions-searchbox"] input'));
+                let inputs = Array.from(document.querySelectorAll('input.ZBTq6e, .JuLCid input, div[id^="directions-searchbox"] input, input[aria-label*="point"], input[aria-label*="Destination"]'));
+                let names = inputs.map(getName).filter(v => v && v.trim() !== '' && v !== "''");
 
-                // Final fallback: any input that looks like a directions input
-                if (inputs.length === 0) {
-                    inputs = Array.from(document.querySelectorAll('input')).filter(i => {
-                        const aria = i.getAttribute('aria-label') || '';
-                        return aria.includes('point') || aria.includes('Destination') || aria.includes('Via');
-                    });
-                }
-
-                let names = inputs.map(getName).filter(val => val && val.trim() !== '' && val !== "''");
-
-                // Fallback to text elements in the panel if inputs yield nothing
                 if (names.length === 0) {
-                    const waypointElements = Array.from(document.querySelectorAll('.IA0p8e, .drp-location-name, div[aria-label^="Destination"], div[aria-label^="Starting point"], .UgZ9Y .Y69Xre'));
-                    names = waypointElements.map(el => {
+                    const els = Array.from(document.querySelectorAll('.IA0p8e, .drp-location-name, div[aria-label^="Destination"], div[aria-label^="Starting point"]'));
+                    names = els.map(el => {
                         const aria = el.getAttribute('aria-label');
                         if (aria) return aria.replace(/^(Starting point|Destination|Via) /, '');
                         return el.innerText;
-                    }).filter(val => val && val.trim() !== '' && val !== "''");
+                    }).filter(v => v && v.trim() !== '' && v !== "''");
                 }
-
                 return names;
             });
 
-            console.log(`[Browser] Resolved in ${Date.now() - start}ms: ${waypointNames.length} names found`);
             const resolvedUrl = page.url();
-            return { originalUrl: url, resolvedUrl: resolvedUrl, waypointNames: waypointNames, browserUsed: true };
+            return { originalUrl: url, resolvedUrl, waypointNames, browserUsed: true };
         } finally {
             if (page) await page.close();
+            if (context) await context.close();
         }
     } catch (error) {
-        console.error(`[Browser] Error: ${error.message}`);
         if (page) try { await page.close(); } catch (e) { }
+        if (context) try { await context.close(); } catch (e) { }
 
-        // Fallback to basic fetch
         try {
             const fallbackRes = await fetch(url, { method: 'HEAD', redirect: 'follow' });
             return { originalUrl: url, resolvedUrl: fallbackRes.url, waypointNames: [], browserUsed: true };
