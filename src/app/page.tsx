@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { authService, User, Trip, API_BASE_URL } from '@/lib/auth-service';
 import { SignInModal } from '@/components/SignInModal';
+import { Capacitor } from '@capacitor/core';
 
 // MapView must be loaded dynamically because Leaflet depends on 'window'
 const MapView = dynamic(() => import('@/components/MapView'), {
@@ -672,6 +673,22 @@ function MapParserContent() {
             if (currentUser) fetchTrips(currentUser.id!);
             // Dispatch event to update Header
             window.dispatchEvent(new Event('auth-change'));
+          }}
+          onGoogleSignIn={async () => {
+            const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+            if (!clientId) return;
+
+            // Use window.location.origin for web, or the specific bridge for native
+            const isNative = Capacitor.isNativePlatform();
+            const redirectUri = isNative
+              ? 'https://mapparser.travel-tracker.org/google-callback'
+              : 'https://mapparser.travel-tracker.org';
+
+            const scope = 'openid email profile';
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
+
+            // For page.tsx we just redirect. Header.tsx will handle the callback on reload/return.
+            window.location.href = authUrl;
           }}
         />
       </div >

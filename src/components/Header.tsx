@@ -26,34 +26,6 @@ export function Header() {
     const pathname = usePathname();
     const router = useRouter();
 
-    const loginWithGoogle = useGoogleLogin({
-        onSuccess: async (tokenResponse: any) => {
-            console.log('Google login success, token received:', tokenResponse);
-            setIsAuthLoading(true);
-            try {
-                const result = await authService.googleLogin(tokenResponse.access_token, true);
-                if (result.user) {
-                    setUser(result.user);
-                    window.dispatchEvent(new Event('auth-change'));
-                } else {
-                    console.error('Google login failed:', result.error);
-                }
-            } catch (err) {
-                console.error('Error during Google login service call:', err);
-            } finally {
-                setIsAuthLoading(false);
-                setIsSignInModalOpen(false);
-            }
-        },
-        onError: (error: any) => {
-            console.error('Google Login Error callback:', error);
-            setIsAuthLoading(false);
-        },
-        flow: 'implicit',
-        ux_mode: 'redirect',
-        redirect_uri: 'https://localhost/',
-    } as any);
-
     const handleSocialLoginSuccess = async (token: string) => {
         setIsAuthLoading(true);
         console.log('🔄 Processing social login token...');
@@ -84,9 +56,10 @@ export function Header() {
         }
 
         // Use our new bridge page as the redirect to bypass Google's custom scheme restriction
+        // For web, use the current origin. For native, use the bridge page.
         const redirectUri = Capacitor.isNativePlatform()
             ? 'https://mapparser.travel-tracker.org/google-callback'
-            : 'https://localhost/';
+            : 'https://mapparser.travel-tracker.org';
 
         const scope = 'openid email profile';
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
