@@ -67,7 +67,7 @@ export function Header() {
 
     return (
         <>
-            <header className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-md border-b border-white/10 pt-[env(safe-area-inset-top)]">
+            <header className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-md border-b border-white/10 pt-safe">
                 <div className="w-full max-w-7xl mx-auto px-3 md:px-6 h-16 md:h-20 flex items-center justify-between">
                     <Link to="/" className="flex items-center gap-3 group" onClick={() => window.dispatchEvent(new Event('map-reset'))}>
                         <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500/30 transition-colors">
@@ -171,7 +171,7 @@ export function Header() {
                 onClose={() => setIsAboutModalOpen(false)}
             />
             {/* Spacer for fixed header */}
-            <div className="h-16 md:h-20 mt-[env(safe-area-inset-top)]"></div>
+            <div className="h-16 md:h-20 mt-safe"></div>
         </>
     );
 }

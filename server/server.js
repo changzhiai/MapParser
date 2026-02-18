@@ -156,12 +156,24 @@ app.post('/api/google-login', async (req, res) => {
     }
 });
 
+app.post('/api/google-callback', (req, res) => {
+    const credential = req.body.credential || req.body.id_token;
+    // Get the frontend origin from environment or host header
+    const frontendOrigin = process.env.VITE_FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+
+    if (credential) {
+        // Redirect back to the frontend with the credential in the query string
+        res.redirect(`${frontendOrigin}/?google_credential=${credential}`);
+    } else {
+        res.redirect(`${frontendOrigin}/?error=google_login_failed`);
+    }
+});
+
 app.post('/api/apple-callback', (req, res) => {
     try {
         const { code, id_token, state, user } = req.body;
 
-        // This HTML will be rendered inside the Apple popup window.
-        // It sends the data back to the main application window and then closes itself.
+        const frontendOrigin = process.env.VITE_FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
         const html = `
 <!DOCTYPE html>
 <html>
@@ -184,8 +196,10 @@ app.post('/api/apple-callback', (req, res) => {
             window.opener.postMessage(response, '*');
             window.close();
         } else {
-            // Fallback for non-popup flows
-            window.location.href = '/?apple_auth_success=true';
+            // Fallback for non-popup flows (Capacitor/Mobile)
+            const idToken = response.authorization.id_token;
+            const userData = response.user ? encodeURIComponent(JSON.stringify(response.user)) : '';
+            window.location.href = \`\${frontendOrigin}/?apple_id_token=\${idToken}&apple_user=\${userData}\`;
         }
     </script>
     <div style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh;">

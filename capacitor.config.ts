@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
   server: {
     iosScheme: 'https',
     androidScheme: 'https',
-    hostname: 'localhost',
+    hostname: 'mapparser.travel-tracker.org',
     allowNavigation: [
       'accounts.google.com',
       '*.google.com',

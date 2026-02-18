@@ -13,6 +13,10 @@
     --success: #10b981;
 }
 
+html {
+    background-color: var(--bg-color);
+}
+
 body {
     background-color: var(--bg-color);
     color: var(--text-main);
@@ -20,7 +24,17 @@ body {
     min-height: 100vh;
     margin: 0;
     padding: 0;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
     overflow-x: hidden;
+}
+
+.pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+.mt-safe {
+    margin-top: env(safe-area-inset-top, 0px);
 }
 
 h2 {

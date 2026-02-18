@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { authService } from '@/lib/auth-service';
+import { authService, API_BASE_URL } from '@/lib/auth-service';
 import AppleSignin from 'react-apple-signin-auth';
 import { useGoogleLogin } from '@react-oauth/google';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, Key, AlertCircle, Loader2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+
+import { Browser } from '@capacitor/browser';
 
 interface SignInModalProps {
     isOpen: boolean;
@@ -35,8 +38,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
     };
 
     const loginWithGoogle = useGoogleLogin({
-        onSuccess: async (tokenResponse: any) => {
-            console.log('Google login success response:', tokenResponse);
+        onSuccess: async (tokenResponse) => {
             if (tokenResponse.access_token) {
                 setLoading(true);
                 const result = await authService.googleLogin(tokenResponse.access_token, true);
@@ -46,19 +48,30 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                     onClose();
                     resetForm();
                 } else {
-                    console.error('Google verification failed on server:', result.error);
                     setError(result.error || 'Google login failed');
                 }
-            } else {
-                console.warn('Google login success but no access_token found');
-                setError('Google Login failed: No access token');
             }
         },
-        onError: (error) => {
-            console.error('Google Login Error callback:', error);
-            setError('Google Login Failed');
+        onError: () => {
+            setError('Google login failed');
         },
     });
+
+    const handleGoogleLogin = async () => {
+        if (isNative) {
+            const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+            const redirectUri = `${API_BASE_URL}/api/google-callback`;
+            const scope = encodeURIComponent('openid profile email');
+            const state = encodeURIComponent('origin:native');
+            const nonce = encodeURIComponent(Math.random().toString(36).substring(2));
+            // Use id_token and form_post to match the backend's POST handler
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=id_token&scope=${scope}&state=${state}&nonce=${nonce}&response_mode=form_post`;
+
+            await Browser.open({ url: authUrl });
+        } else {
+            loginWithGoogle();
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -111,6 +124,8 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
         }
     };
 
+    // For native app, use redirect mode as it is much more stable than popups
+    const isNative = Capacitor.isNativePlatform();
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
@@ -224,9 +239,9 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
 
                             <div className="flex flex-col gap-3">
                                 <button
-                                    onClick={() => loginWithGoogle()}
+                                    onClick={() => handleGoogleLogin()}
                                     disabled={loading || isExternalLoading}
-                                    className="relative z-[150] flex items-center justify-center gap-3 w-full py-2.5 bg-white text-black rounded-full font-medium transition-all hover:bg-gray-100 disabled:opacity-50"
+                                    className="flex items-center justify-center gap-3 w-full py-2.5 bg-white text-black rounded-full font-medium transition-all hover:bg-gray-100 disabled:opacity-50"
                                 >
                                     <svg width="18" height="18" viewBox="0 0 18 18">
                                         <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4" />
@@ -244,7 +259,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                                         redirectURI: import.meta.env.VITE_APPLE_REDIRECT_URI || '',
                                         state: 'origin:web',
                                         nonce: 'nonce',
-                                        usePopup: true,
+                                        usePopup: !isNative,
                                     }}
                                     uiType="dark"
                                     onSuccess={async (response: any) => {
@@ -266,7 +281,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                                         <button
                                             {...props}
                                             disabled={loading || isExternalLoading}
-                                            className="flex items-center justify-center gap-2 w-full py-2.5 bg-black text-white rounded-full font-medium transition-all hover:bg-gray-900 border border-white/10 disabled:opacity-50"
+                                            className="flex items-center justify-center gap-2.5 w-full py-2.5 bg-black text-white rounded-full font-medium transition-all hover:bg-gray-900 border border-white/10 disabled:opacity-50"
                                         >
                                             <svg className="w-4 h-4" viewBox="0 0 170 170" fill="currentColor">
                                                 <path d="M150.37,130.25c-2.45,5.66-5.35,10.89-8.71,15.66c-8.58,12.13-17.52,21.41-26.83,27.85c-9.31,6.44-18.4,9.66-27.27,9.66 c-4.22,0-8.89-1.04-14-3.12c-5.11-2.08-10.3-3.12-15.58-3.12c-5.28,0-10.51,1.04-15.71,3.12c-5.2,2.08-9.83,3.12-13.88,3.12 c-9.15,0-18.73-3.46-28.71-10.38c-9.98-6.92-18.74-16.74-26.29-29.47C5.97,114.24,2,97.77,2,83.98c0-14.16,2.44-26.54,7.31-37.12 c4.87-10.58,11.51-18.89,19.92-24.96c8.41-6.07,17.76-9.11,28.05-9.11c4.54,0,9.97,1.21,16.28,3.63c6.31,2.42,11.39,3.63,15.25,3.63 c3.14,0,7.88-1.21,14.21-3.63c6.33-2.42,12.11-3.63,17.34-3.63c10,0,18.77,2.5,26.3,7.51c7.53,5.01,13.43,11.75,17.71,20.21 c-11.03,6.72-16.55,16.14-16.55,28.27c0,9.81,3.29,17.96,9.87,24.46c6.58,6.5,14.34,10.43,23.27,11.79 C157.06,114.07,154.54,121.75,150.37,130.25z M119.23,30.3c-5.46,6.6-11.95,10.03-19.47,10.28c-0.45-8.48,2.7-16.51,9.45-24.08 c6.76-7.57,14.31-11.64,22.66-12.2c0.75,8.87-4.11,18.06-9.4,24.36L119.23,30.3z" />

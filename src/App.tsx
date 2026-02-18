@@ -131,12 +131,52 @@ function MapParserContent() {
     useEffect(() => {
         const queryUrl = searchParams.get('url');
         if (queryUrl) {
-            let fullUrl = queryUrl;
-            // Reconstruct URL if split (basic attempt) - usually searchParams handles it better than manual string parsing but keep logic
-            setUrl(fullUrl);
-            handleAnalyze(fullUrl, true);
+            setUrl(queryUrl);
+            handleAnalyze(queryUrl, true);
         }
-    }, [searchParams]);
+
+        const credential = searchParams.get('google_credential');
+        if (credential) {
+            const handleCredential = async () => {
+                setLoading(true);
+                const result = await authService.googleLogin(credential, false);
+                setLoading(false);
+                if (result.user) {
+                    setUser(result.user);
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.delete('google_credential');
+                    setSearchParams(newParams);
+                } else {
+                    setError(result.error || 'Google login failed');
+                }
+            };
+            handleCredential();
+        }
+
+        const appleToken = searchParams.get('apple_id_token');
+        if (appleToken) {
+            const handleAppleCredential = async () => {
+                setLoading(true);
+                const appleUserStr = searchParams.get('apple_user');
+                let appleUser = null;
+                if (appleUserStr) {
+                    try { appleUser = JSON.parse(decodeURIComponent(appleUserStr)); } catch (e) { /* ignore */ }
+                }
+                const result = await authService.appleLogin(appleToken, appleUser);
+                setLoading(false);
+                if (result.user) {
+                    setUser(result.user);
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.delete('apple_id_token');
+                    newParams.delete('apple_user');
+                    setSearchParams(newParams);
+                } else {
+                    setError(result.error || 'Apple login failed');
+                }
+            };
+            handleAppleCredential();
+        }
+    }, [searchParams, setSearchParams]);
 
     useEffect(() => {
         const checkUser = () => {

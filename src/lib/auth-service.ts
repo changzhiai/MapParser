@@ -1,4 +1,22 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const getBaseUrl = () => {
+    if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
+    if (typeof window !== 'undefined') {
+        const { hostname, protocol, port } = window.location;
+        // In dev, usually server is on 3002
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return `${protocol}//${hostname}:3002`;
+        }
+        // If we are in a native app, window.location.origin might be capacitor://
+        // Google requires https:// for redirects
+        if (protocol === 'capacitor:') {
+            return `https://mapparser.travel-tracker.org`;
+        }
+        return window.location.origin;
+    }
+    return '';
+};
+
+export const API_BASE_URL = getBaseUrl();
 const API_URL = `${API_BASE_URL}/api`;
 
 const CURRENT_USER_KEY = 'map_parser_current_user';
