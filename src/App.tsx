@@ -135,22 +135,22 @@ function MapParserContent() {
             handleAnalyze(queryUrl, true);
         }
 
-        const credential = searchParams.get('google_credential');
-        if (credential) {
-            const handleCredential = async () => {
+        const googleAuthCode = searchParams.get('google_auth_code');
+        if (googleAuthCode) {
+            const handleExchange = async () => {
                 setLoading(true);
-                const result = await authService.googleLogin(credential, false);
+                const result = await authService.googleExchange(googleAuthCode);
                 setLoading(false);
                 if (result.user) {
                     setUser(result.user);
                     const newParams = new URLSearchParams(searchParams);
-                    newParams.delete('google_credential');
+                    newParams.delete('google_auth_code');
                     setSearchParams(newParams);
                 } else {
                     setError(result.error || 'Google login failed');
                 }
             };
-            handleCredential();
+            handleExchange();
         }
 
         const appleToken = searchParams.get('apple_id_token');

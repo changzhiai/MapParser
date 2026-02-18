@@ -12,6 +12,9 @@ const puppeteer = require('puppeteer');
 // Load environment variables from the root .env.local
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
+// In-memory storage for temporary auth codes
+const tempAuthCodes = new Map();
+
 // Helper to delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -97,7 +100,48 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-app.post('/api/google-login', async (req, res) => {
+app.post('/api/google-callback', (req, res) => {
+    const credential = req.body.credential || req.body.id_token;
+    // Get the frontend origin from environment or host header
+    const frontendOrigin = process.env.VITE_FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+
+    if (credential) {
+        // Generate a random temporary code
+        const tempCode = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+        tempAuthCodes.set(tempCode, { credential, timestamp: Date.now() });
+
+        // Expire codes after 5 minutes
+        setTimeout(() => tempAuthCodes.delete(tempCode), 3000000);
+
+        // Redirect back to the frontend with the temporary code
+        res.redirect(`${frontendOrigin}/?google_auth_code=${tempCode}`);
+    } else {
+        res.redirect(`${frontendOrigin}/?error=google_login_failed`);
+    }
+});
+
+/**
+ * Exchange a temporary auth code for the actual user credentials.
+ */
+app.post('/api/google-exchange', async (req, res) => {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'Code is required' });
+
+    const authData = tempAuthCodes.get(code);
+    if (!authData) return res.status(400).json({ error: 'Invalid or expired auth code' });
+
+    // Mark as used immediately
+    tempAuthCodes.delete(code);
+
+    // Reuse the verification logic
+    req.body.token = authData.credential;
+    req.body.isAccessToken = false;
+
+    return handleGoogleLoginLogic(req, res);
+});
+
+// Extracted Google login logic
+async function handleGoogleLoginLogic(req, res) {
     const { token, isAccessToken } = req.body;
     if (!token) return res.status(400).json({ error: 'Token is required' });
 
@@ -154,20 +198,9 @@ app.post('/api/google-login', async (req, res) => {
     } catch (error) {
         res.status(401).json({ error: 'Invalid Google token' });
     }
-});
+}
 
-app.post('/api/google-callback', (req, res) => {
-    const credential = req.body.credential || req.body.id_token;
-    // Get the frontend origin from environment or host header
-    const frontendOrigin = process.env.VITE_FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-
-    if (credential) {
-        // Redirect back to the frontend with the credential in the query string
-        res.redirect(`${frontendOrigin}/?google_credential=${credential}`);
-    } else {
-        res.redirect(`${frontendOrigin}/?error=google_login_failed`);
-    }
-});
+app.post('/api/google-login', (req, res) => handleGoogleLoginLogic(req, res));
 
 app.post('/api/apple-callback', (req, res) => {
     try {

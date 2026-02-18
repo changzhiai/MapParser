@@ -115,6 +115,37 @@ export const authService = {
         }
     },
 
+    async googleExchange(code: string): Promise<{ user: User | null; error?: string }> {
+        try {
+            const response = await fetch(`${API_URL}/google-exchange`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                try {
+                    const data = JSON.parse(text);
+                    return { user: null, error: data.error || `Error: ${response.status} ${response.statusText}` };
+                } catch (e) {
+                    return { user: null, error: `Error: ${response.status} ${response.statusText}` };
+                }
+            }
+
+            const data = await response.json();
+            const user = data.user;
+            if (user) {
+                localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+                return { user };
+            }
+            return { user: null, error: data.error || 'Google exchange failed' };
+        } catch (error) {
+            console.error('Google Exchange Error:', error);
+            return { user: null, error: 'Network error' };
+        }
+    },
+
     async appleLogin(token: string, user?: any): Promise<{ user: User | null; error?: string }> {
         try {
             const response = await fetch(`${API_URL}/apple-login`, {
