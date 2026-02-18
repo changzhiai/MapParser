@@ -2,11 +2,10 @@ module.exports = {
     apps: [
         {
             name: 'map-parser',
-            script: 'npm',
-            args: 'start',
+            script: 'npx',
+            args: 'serve -s out -p 3002',
             env: {
                 NODE_ENV: 'production',
-                PORT: 3002,
             },
         },
         {
