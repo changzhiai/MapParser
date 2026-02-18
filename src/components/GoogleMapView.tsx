@@ -100,7 +100,7 @@ interface GoogleMapViewProps {
 // CHUNK_SIZE moved into effect
 
 export default function GoogleMapView({ waypoints, url, mode: controlledMode, onModeChange }: GoogleMapViewProps) {
-    const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+    const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
     const [internalMode, setInternalMode] = useState<'interactive' | 'embed'>('interactive');
     const isControlled = controlledMode !== undefined && onModeChange !== undefined;
     const mode = isControlled ? controlledMode : internalMode;
@@ -251,7 +251,7 @@ export default function GoogleMapView({ waypoints, url, mode: controlledMode, on
                 <AlertTriangle className="text-yellow-500 mb-4" size={48} />
                 <h3 className="text-xl font-bold text-white mb-2">Google Maps API Key Missing</h3>
                 <p className="text-gray-400 max-w-md">
-                    To use Google Maps, you need to add <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to your environment variables.
+                    To use Google Maps, you need to add <code>VITE_GOOGLE_MAPS_API_KEY</code> to your environment variables.
                 </p>
             </div>
         )

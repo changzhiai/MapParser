@@ -1,23 +1,20 @@
-'use client';
-
 import React, { useState } from 'react';
 import { authService } from '@/lib/auth-service';
 import AppleSignin from 'react-apple-signin-auth';
+import { useGoogleLogin } from '@react-oauth/google';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, Key, AlertCircle, Loader2 } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
 
 interface SignInModalProps {
     isOpen: boolean;
     onClose: () => void;
     onLoginSuccess: (username: string) => void;
-    onGoogleSignIn?: () => void;
     isExternalLoading?: boolean;
 }
 
 type Mode = 'signin' | 'register' | 'reset';
 
-export function SignInModal({ isOpen, onClose, onLoginSuccess, onGoogleSignIn, isExternalLoading }: SignInModalProps) {
+export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading }: SignInModalProps) {
     const [mode, setMode] = useState<Mode>('signin');
     const [resetStep, setResetStep] = useState<'email' | 'verification'>('email');
     const [username, setUsername] = useState('');
@@ -27,12 +24,41 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, onGoogleSignIn, i
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    const handleGoogleSignIn = () => {
-        if (onGoogleSignIn) {
-            console.log('Google Sign-In button clicked');
-            onGoogleSignIn();
-        }
+    const resetForm = () => {
+        setUsername('');
+        setPassword('');
+        setEmail('');
+        setVerificationCode('');
+        setResetStep('email');
+        setError(null);
+        setMode('signin');
     };
+
+    const loginWithGoogle = useGoogleLogin({
+        onSuccess: async (tokenResponse: any) => {
+            console.log('Google login success response:', tokenResponse);
+            if (tokenResponse.access_token) {
+                setLoading(true);
+                const result = await authService.googleLogin(tokenResponse.access_token, true);
+                setLoading(false);
+                if (result.user) {
+                    onLoginSuccess(result.user.username);
+                    onClose();
+                    resetForm();
+                } else {
+                    console.error('Google verification failed on server:', result.error);
+                    setError(result.error || 'Google login failed');
+                }
+            } else {
+                console.warn('Google login success but no access_token found');
+                setError('Google Login failed: No access token');
+            }
+        },
+        onError: (error) => {
+            console.error('Google Login Error callback:', error);
+            setError('Google Login Failed');
+        },
+    });
 
     if (!isOpen) return null;
 
@@ -47,6 +73,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, onGoogleSignIn, i
                 if (result.user) {
                     onLoginSuccess(result.user.username);
                     onClose();
+                    resetForm();
                 } else {
                     setError(result.error || 'Invalid credentials');
                 }
@@ -55,6 +82,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, onGoogleSignIn, i
                 if (result.success) {
                     onLoginSuccess(username);
                     onClose();
+                    resetForm();
                 } else {
                     setError(result.error || 'Registration failed');
                 }
@@ -196,7 +224,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, onGoogleSignIn, i
 
                             <div className="flex flex-col gap-3">
                                 <button
-                                    onClick={handleGoogleSignIn}
+                                    onClick={() => loginWithGoogle()}
                                     disabled={loading || isExternalLoading}
                                     className="relative z-[150] flex items-center justify-center gap-3 w-full py-2.5 bg-white text-black rounded-full font-medium transition-all hover:bg-gray-100 disabled:opacity-50"
                                 >
@@ -211,9 +239,9 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, onGoogleSignIn, i
 
                                 <AppleSignin
                                     authOptions={{
-                                        clientId: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || '',
+                                        clientId: import.meta.env.VITE_APPLE_CLIENT_ID || '',
                                         scope: 'email name',
-                                        redirectURI: process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || '',
+                                        redirectURI: import.meta.env.VITE_APPLE_REDIRECT_URI || '',
                                         state: 'origin:web',
                                         nonce: 'nonce',
                                         usePopup: true,
@@ -227,6 +255,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, onGoogleSignIn, i
                                             if (result.user) {
                                                 onLoginSuccess(result.user.username);
                                                 onClose();
+                                                resetForm();
                                             } else {
                                                 setError(result.error || 'Apple login failed');
                                             }

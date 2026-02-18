@@ -1,11 +1,9 @@
-'use client';
-
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import { useNavigate } from 'react-router-dom';
 import { authService, Trip, API_BASE_URL } from '@/lib/auth-service';
-import { parseMapUrl, Waypoint, cleanWaypointName, extractLocationFromNames, getCurrentYear, getLocationWithAPI } from '@/lib/map-parser';
+import { parseMapUrl, Waypoint, cleanWaypointName, getCurrentYear, getLocationWithAPI } from '@/lib/map-parser';
 import { Loader2, Trash2, ArrowRight, ExternalLink, StickyNote, Map, Edit2, Check, X, Plus, Download, Route, Wand2, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 // Helper for resolving and parsing routes (shared between load and save)
 const resolveAndParseRouteHelper = async (rawUrl: string, useBrowser = false): Promise<{ waypoints: Waypoint[], rawNames: string[] }> => {
@@ -52,8 +50,6 @@ const resolveAndParseRouteHelper = async (rawUrl: string, useBrowser = false): P
     }
 };
 
-import { motion } from 'framer-motion';
-
 export default function MyTrips() {
     const [trips, setTrips] = useState<Trip[]>([]);
     const [loading, setLoading] = useState(true);
@@ -67,13 +63,13 @@ export default function MyTrips() {
     const [isResolving, setIsResolving] = useState(false);
     const [sortKey, setSortKey] = useState<keyof Trip>('id');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-    const router = useRouter();
+    const navigate = useNavigate();
 
     useEffect(() => {
         window.scrollTo(0, 0);
         const user = authService.getCurrentUser();
         if (!user) {
-            router.push('/');
+            navigate('/');
             return;
         }
 
@@ -87,7 +83,7 @@ export default function MyTrips() {
         };
 
         loadTrips();
-    }, [router]);
+    }, [navigate]);
 
     const resolveMissingForTrips = async (tripsToFix: Trip[], userId: number) => {
         for (const trip of tripsToFix) {
@@ -657,7 +653,7 @@ export default function MyTrips() {
                                                                 <Edit2 size={18} />
                                                             </button>
                                                             <button
-                                                                onClick={() => router.push(`/?url=${encodeURIComponent(trip.link)}`)}
+                                                                onClick={() => navigate(`/?url=${encodeURIComponent(trip.link)}`)}
                                                                 className="p-2 hover:bg-white/10 rounded-lg text-indigo-400 hover:text-white transition-colors"
                                                                 title="Analyze Route"
                                                             >
@@ -712,7 +708,7 @@ export default function MyTrips() {
                         </p>
                         <div className="flex gap-4">
                             <button
-                                onClick={() => router.push('/')}
+                                onClick={() => navigate('/')}
                                 className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2"
                             >
                                 <ArrowRight size={18} />
@@ -732,3 +728,4 @@ export default function MyTrips() {
         </main>
     );
 }
+

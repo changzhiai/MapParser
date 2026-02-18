@@ -1,4 +1,4 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4002';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const API_URL = `${API_BASE_URL}/api`;
 
 const CURRENT_USER_KEY = 'map_parser_current_user';
@@ -42,13 +42,21 @@ export const authService = {
                 body: JSON.stringify({ username, password })
             });
 
-            const data = await response.json();
-            if (response.ok) {
-                const user = data.user;
-                if (user) {
-                    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-                    return { user };
+            if (!response.ok) {
+                const text = await response.text();
+                try {
+                    const data = JSON.parse(text);
+                    return { user: null, error: data.error || `Error: ${response.status} ${response.statusText}` };
+                } catch (e) {
+                    return { user: null, error: `Error: ${response.status} ${response.statusText}` };
                 }
+            }
+
+            const data = await response.json();
+            const user = data.user;
+            if (user) {
+                localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+                return { user };
             }
             return { user: null, error: data.error || 'Login failed' };
         } catch (error) {
@@ -66,13 +74,21 @@ export const authService = {
                 body: JSON.stringify({ token, isAccessToken })
             });
 
-            const data = await response.json();
-            if (response.ok) {
-                const user = data.user;
-                if (user) {
-                    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-                    return { user };
+            if (!response.ok) {
+                const text = await response.text();
+                try {
+                    const data = JSON.parse(text);
+                    return { user: null, error: data.error || `Error: ${response.status} ${response.statusText}` };
+                } catch (e) {
+                    return { user: null, error: `Error: ${response.status} ${response.statusText}` };
                 }
+            }
+
+            const data = await response.json();
+            const user = data.user;
+            if (user) {
+                localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+                return { user };
             }
             return { user: null, error: data.error || 'Google login failed' };
         } catch (error) {
@@ -89,13 +105,21 @@ export const authService = {
                 body: JSON.stringify({ token, user })
             });
 
-            const data = await response.json();
-            if (response.ok) {
-                const user = data.user;
-                if (user) {
-                    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-                    return { user };
+            if (!response.ok) {
+                const text = await response.text();
+                try {
+                    const data = JSON.parse(text);
+                    return { user: null, error: data.error || `Error: ${response.status} ${response.statusText}` };
+                } catch (e) {
+                    return { user: null, error: `Error: ${response.status} ${response.statusText}` };
                 }
+            }
+
+            const data = await response.json();
+            const userResponse = data.user;
+            if (userResponse) {
+                localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userResponse));
+                return { user: userResponse };
             }
             return { user: null, error: data.error || 'Apple login failed' };
         } catch (error) {
@@ -112,13 +136,20 @@ export const authService = {
                 body: JSON.stringify({ username, password, email })
             });
 
-            const data = await response.json();
-            if (response.ok) {
-                const user: User = { id: data.userId, username, email };
-                localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-                return { success: true };
+            if (!response.ok) {
+                const text = await response.text();
+                try {
+                    const data = JSON.parse(text);
+                    return { success: false, error: data.error || `Error: ${response.status} ${response.statusText}` };
+                } catch (e) {
+                    return { success: false, error: `Error: ${response.status} ${response.statusText}` };
+                }
             }
-            return { success: false, error: data.error || 'Registration failed' };
+
+            const data = await response.json();
+            const user: User = { id: data.userId, username, email };
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+            return { success: true };
         } catch (error) {
             console.error('Register Error:', error);
             return { success: false, error: 'Network error' };
@@ -197,12 +228,19 @@ export const authService = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, password })
             });
-            const data = await response.json();
-            if (response.ok) {
-                this.logout();
-                return { success: true };
+
+            if (!response.ok) {
+                const text = await response.text();
+                try {
+                    const data = JSON.parse(text);
+                    return { success: false, message: data.error || `Error: ${response.status} ${response.statusText}` };
+                } catch (e) {
+                    return { success: false, message: `Error: ${response.status} ${response.statusText}` };
+                }
             }
-            return { success: false, message: data.error || 'Delete failed' };
+
+            this.logout();
+            return { success: true };
         } catch (error) {
             console.error('Delete Account Error:', error);
             return { success: false, message: 'Network error' };
@@ -220,7 +258,6 @@ export const authService = {
             const response = await fetch(`${API_URL}/trips`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // eslint-disable-next-line @typescript-eslint/naming-convention
                 body: JSON.stringify({ userId, name, link, year, location, note, routeSummary })
             });
             const data = await response.json();
@@ -236,7 +273,6 @@ export const authService = {
             const response = await fetch(`${API_URL}/trips/${tripId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                // eslint-disable-next-line @typescript-eslint/naming-convention
                 body: JSON.stringify({ userId, name, link, year, location, note, routeSummary })
             });
             const data = await response.json();

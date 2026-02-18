@@ -16,13 +16,16 @@ dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const app = express();
-const PORT = process.env.SERVER_PORT || 3001;
+const PORT = process.env.SERVER_PORT || 3002;
 
 // Log all requests
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
 });
+
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, '../dist')));
 
 app.use(cors({
     origin: '*',
@@ -32,7 +35,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const googleClient = new OAuth2Client(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 
 const transporter = nodemailer.createTransport({
     service: process.env.EMAIL_SERVICE || 'hotmail',
@@ -120,7 +123,7 @@ app.post('/api/google-login', async (req, res) => {
         } else {
             const ticket = await googleClient.verifyIdToken({
                 idToken: token,
-                audience: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+                audience: process.env.VITE_GOOGLE_CLIENT_ID
             });
             const payload = ticket.getPayload();
             email = payload.email;
@@ -178,7 +181,7 @@ app.post('/api/apple-callback', (req, res) => {
         
         if (window.opener) {
             // Post message back to the parent window (SignInModal)
-            window.opener.postMessage(response, window.location.origin);
+            window.opener.postMessage(response, '*');
             window.close();
         } else {
             // Fallback for non-popup flows
@@ -205,7 +208,7 @@ app.post('/api/apple-login', async (req, res) => {
 
     try {
         const { sub: appleId, email } = await appleSignin.verifyIdToken(token, {
-            audience: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID,
+            audience: process.env.VITE_APPLE_CLIENT_ID,
             ignoreExpiration: false,
         });
 
@@ -646,6 +649,11 @@ app.post('/api/route', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch route' });
     }
+});
+
+// Handle client-side routing for React
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {

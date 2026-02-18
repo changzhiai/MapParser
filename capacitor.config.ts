@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'org.traveltracker.mapparser',
   appName: 'MapParser',
-  webDir: 'out',
+  webDir: 'dist',
   plugins: {},
   server: {
     iosScheme: 'https',
