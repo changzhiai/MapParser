@@ -211,9 +211,9 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, onGoogleSignIn, i
 
                                 <AppleSignin
                                     authOptions={{
-                                        clientId: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || 'org.traveltracker.mapparse',
+                                        clientId: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || '',
                                         scope: 'email name',
-                                        redirectURI: process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || 'https://mapparser.travel-tracker.org/api/apple-callback',
+                                        redirectURI: process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || '',
                                         state: 'origin:web',
                                         nonce: 'nonce',
                                         usePopup: true,
