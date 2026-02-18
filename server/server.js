@@ -12,9 +12,6 @@ const puppeteer = require('puppeteer');
 // Load environment variables from the root .env.local
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
-// In-memory storage for temporary auth codes
-const tempAuthCodes = new Map();
-
 // Helper to delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -100,54 +97,14 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-app.post('/api/google-callback', (req, res) => {
-    const credential = req.body.credential || req.body.id_token;
-    // Get the frontend origin from environment or host header
-    const frontendOrigin = process.env.VITE_FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-
-    if (credential) {
-        // Generate a random temporary code
-        const tempCode = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-        tempAuthCodes.set(tempCode, { credential, timestamp: Date.now() });
-
-        // Expire codes after 5 minutes
-        setTimeout(() => tempAuthCodes.delete(tempCode), 3000000);
-
-        // Redirect back to the frontend with the temporary code
-        res.redirect(`${frontendOrigin}/?google_auth_code=${tempCode}`);
-    } else {
-        res.redirect(`${frontendOrigin}/?error=google_login_failed`);
-    }
-});
-
-/**
- * Exchange a temporary auth code for the actual user credentials.
- */
-app.post('/api/google-exchange', async (req, res) => {
-    const { code } = req.body;
-    if (!code) return res.status(400).json({ error: 'Code is required' });
-
-    const authData = tempAuthCodes.get(code);
-    if (!authData) return res.status(400).json({ error: 'Invalid or expired auth code' });
-
-    // Mark as used immediately
-    tempAuthCodes.delete(code);
-
-    // Reuse the verification logic
-    req.body.token = authData.credential;
-    req.body.isAccessToken = false;
-
-    return handleGoogleLoginLogic(req, res);
-});
-
-// Extracted Google login logic
-async function handleGoogleLoginLogic(req, res) {
+app.post('/api/google-login', async (req, res) => {
     const { token, isAccessToken } = req.body;
     if (!token) return res.status(400).json({ error: 'Token is required' });
 
     try {
         let email, name;
         if (isAccessToken) {
+            console.log('Verifying Google access token...');
             const gResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -156,22 +113,29 @@ async function handleGoogleLoginLogic(req, res) {
                 if (tiResponse.ok) {
                     const tiData = await tiResponse.json();
                     email = tiData.email;
+                    console.log('Tokeninfo fallback successful for:', email);
                 } else {
                     throw new Error('Google verification failed');
                 }
             } else {
                 const gData = await gResponse.json();
+                console.log('Google userinfo response received for:', gData.email);
                 email = gData.email;
                 name = gData.name;
             }
         } else {
+            console.log('Verifying Google ID token...');
             const ticket = await googleClient.verifyIdToken({
                 idToken: token,
-                audience: process.env.VITE_GOOGLE_CLIENT_ID
+                audience: [
+                    process.env.VITE_GOOGLE_CLIENT_ID,
+                    process.env.VITE_IOS_GOOGLE_CLIENT_ID // iOS Client ID
+                ]
             });
             const payload = ticket.getPayload();
             email = payload.email;
             name = payload.name;
+            console.log('Google ID token verified for:', email);
         }
 
         db.getUserByEmail(email, (err, user) => {
@@ -196,58 +160,14 @@ async function handleGoogleLoginLogic(req, res) {
             }
         });
     } catch (error) {
-        res.status(401).json({ error: 'Invalid Google token' });
-    }
-}
-
-app.post('/api/google-login', (req, res) => handleGoogleLoginLogic(req, res));
-
-app.post('/api/apple-callback', (req, res) => {
-    try {
-        const { code, id_token, state, user } = req.body;
-
-        const frontendOrigin = process.env.VITE_FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-        const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Apple Sign In Callback</title>
-</head>
-<body>
-    <script>
-        const response = {
-            authorization: {
-                code: ${code ? `'${code}'` : 'null'},
-                id_token: ${id_token ? `'${id_token}'` : 'null'},
-                state: ${state ? `'${state}'` : 'null'}
-            },
-            user: ${user ? (typeof user === 'string' ? user : JSON.stringify(user)) : 'null'}
-        };
-        
-        if (window.opener) {
-            // Post message back to the parent window (SignInModal)
-            window.opener.postMessage(response, '*');
-            window.close();
-        } else {
-            // Fallback for non-popup flows (Capacitor/Mobile)
-            const idToken = response.authorization.id_token;
-            const userData = response.user ? encodeURIComponent(JSON.stringify(response.user)) : '';
-            window.location.href = \`\${frontendOrigin}/?apple_id_token=\${idToken}&apple_user=\${userData}\`;
-        }
-    </script>
-    <div style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh;">
-        <p>Completing your sign-in...</p>
-    </div>
-</body>
-</html>
-`;
-
-        res.type('html').send(html);
-    } catch (error) {
-        console.error('Apple callback error:', error);
-        res.status(500).send('Internal Server Error');
+        console.error('Google Verification Error:', error);
+        res.status(401).json({ error: 'Invalid Google token', details: error.message });
     }
 });
+
+
+
+
 
 app.post('/api/apple-login', async (req, res) => {
     const { token, user: appleUser } = req.body;

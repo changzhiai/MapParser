@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { authService, API_BASE_URL } from '@/lib/auth-service';
 import AppleSignin from 'react-apple-signin-auth';
+import { Capacitor } from '@capacitor/core';
+import { SocialLogin } from '@capgo/capacitor-social-login';
 import { useGoogleLogin } from '@react-oauth/google';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, Key, AlertCircle, Loader2 } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
-
-import { Browser } from '@capacitor/browser';
 
 interface SignInModalProps {
     isOpen: boolean;
@@ -39,6 +38,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
 
     const loginWithGoogle = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
+            console.log('Google login success response:', tokenResponse);
             if (tokenResponse.access_token) {
                 setLoading(true);
                 const result = await authService.googleLogin(tokenResponse.access_token, true);
@@ -48,32 +48,68 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                     onClose();
                     resetForm();
                 } else {
+                    console.error('Google verification failed on server:', result.error);
                     setError(result.error || 'Google login failed');
                 }
+            } else {
+                console.warn('Google login success but no access_token found');
+                setError('Google Login failed: No access token');
             }
         },
-        onError: () => {
-            setError('Google login failed');
+        onError: (error) => {
+            console.error('Google Login Error callback:', error);
+            setError('Google Login Failed');
         },
     });
 
     const handleGoogleLogin = async () => {
-        if (isNative) {
-            const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-            const redirectUri = `${API_BASE_URL}/api/google-callback`;
-            const scope = encodeURIComponent('openid profile email');
-            const state = encodeURIComponent('origin:native');
-            const nonce = encodeURIComponent(Math.random().toString(36).substring(2));
-            // Use id_token and form_post to match the backend's POST handler
-            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=id_token&scope=${scope}&state=${state}&nonce=${nonce}&response_mode=form_post`;
+        if (Capacitor.isNativePlatform()) {
+            try {
+                // Initialize if needed (though usually handled by plugin on load)
+                // await SocialLogin.initialize({ google: { webClientId: '...' } }); 
+                // But easier to rely on config.
 
-            await Browser.open({ url: authUrl });
+                const response = await SocialLogin.login({
+                    provider: 'google',
+                    options: {
+                        scopes: ['email', 'profile']
+                    }
+                });
+
+                console.log('Native Google login success:', response);
+                // The plugin returns result from provider. For Google, it usually has idToken.
+                const token = (response.result as any).idToken;
+
+                if (token) {
+                    setLoading(true);
+                    // Send ID token to backend (isAccessToken = false)
+                    const result = await authService.googleLogin(token, false);
+                    setLoading(false);
+
+                    if (result.user) {
+                        onLoginSuccess(result.user.username);
+                        onClose();
+                        resetForm();
+                    } else {
+                        console.error('Google verification failed on server:', result.error, (result as any).details);
+                        setError(result.error || 'Google login failed');
+                    }
+                } else {
+                    console.error('No ID token in response:', response);
+                    setError('Google Login failed: No ID Token');
+                }
+            } catch (error) {
+                console.error('Native Google Login Error:', error);
+                if (String(error).includes('UNIMPLEMENTED')) {
+                    alert('NATIVE APP UPDATE REQUIRED: The native app binary is outdated. Please rebuild and reinstall the app from Xcode/Android Studio to enable the new login system.');
+                }
+                setError(`Google Login Failed: ${error instanceof Error ? error.message : String(error)}`);
+            }
         } else {
             loginWithGoogle();
         }
     };
 
-    if (!isOpen) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -126,6 +162,8 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
 
     // For native app, use redirect mode as it is much more stable than popups
     const isNative = Capacitor.isNativePlatform();
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
@@ -239,9 +277,11 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
 
                             <div className="flex flex-col gap-3">
                                 <button
-                                    onClick={() => handleGoogleLogin()}
+                                    type="button"
+                                    onClick={handleGoogleLogin}
                                     disabled={loading || isExternalLoading}
-                                    className="flex items-center justify-center gap-3 w-full py-2.5 bg-white text-black rounded-full font-medium transition-all hover:bg-gray-100 disabled:opacity-50"
+                                    style={{ height: '40px', width: '100%' }}
+                                    className="flex items-center justify-center gap-3 bg-white text-black rounded-full font-medium transition-all hover:bg-gray-100 disabled:opacity-50 border border-gray-300"
                                 >
                                     <svg width="18" height="18" viewBox="0 0 18 18">
                                         <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4" />

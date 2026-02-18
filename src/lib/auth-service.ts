@@ -1,15 +1,23 @@
 const getBaseUrl = () => {
-    if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
+    // 1. If we are in a browser on localhost (Vite dev mode), use the local server
     if (typeof window !== 'undefined') {
-        const { hostname, protocol, port } = window.location;
-        // In dev, usually server is on 3002
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        const { hostname, protocol } = window.location;
+        // Strict check: only auto-detect for web browsers on local host
+        if ((hostname === 'localhost' || hostname === '127.0.0.1') && (protocol === 'http:' || protocol === 'https:')) {
             return `${protocol}//${hostname}:3002`;
         }
-        // If we are in a native app, window.location.origin might be capacitor://
-        // Google requires https:// for redirects
-        if (protocol === 'capacitor:') {
-            return `https://mapparser.travel-tracker.org`;
+    }
+
+    // 2. Otherwise use the env var if provided (Primary for Native/Production)
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    if (envUrl) return envUrl;
+
+    // 3. Fallback for native apps or production
+    if (typeof window !== 'undefined') {
+        const { protocol } = window.location;
+        if (protocol === 'capacitor:' || protocol === 'app:') {
+            // No env var and we are native? Default to a placeholder or stay empty
+            return '';
         }
         return window.location.origin;
     }
@@ -85,8 +93,10 @@ export const authService = {
     },
 
     async googleLogin(token: string, isAccessToken: boolean = false): Promise<{ user: User | null; error?: string }> {
+        const url = `${API_URL}/google-login`;
+        console.log(`[AuthService] Attempting google login at: ${url}`);
         try {
-            const response = await fetch(`${API_URL}/google-login`, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token, isAccessToken })
@@ -94,9 +104,10 @@ export const authService = {
 
             if (!response.ok) {
                 const text = await response.text();
+                console.error(`[AuthService] Response not ok: ${response.status}`, text);
                 try {
                     const data = JSON.parse(text);
-                    return { user: null, error: data.error || `Error: ${response.status} ${response.statusText}` };
+                    return { user: null, error: data.error || `Error: ${response.status} ${response.statusText}`, ...data };
                 } catch (e) {
                     return { user: null, error: `Error: ${response.status} ${response.statusText}` };
                 }
@@ -110,39 +121,9 @@ export const authService = {
             }
             return { user: null, error: data.error || 'Google login failed' };
         } catch (error) {
-            console.error('Google Login Error:', error);
-            return { user: null, error: 'Network error' };
-        }
-    },
-
-    async googleExchange(code: string): Promise<{ user: User | null; error?: string }> {
-        try {
-            const response = await fetch(`${API_URL}/google-exchange`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code })
-            });
-
-            if (!response.ok) {
-                const text = await response.text();
-                try {
-                    const data = JSON.parse(text);
-                    return { user: null, error: data.error || `Error: ${response.status} ${response.statusText}` };
-                } catch (e) {
-                    return { user: null, error: `Error: ${response.status} ${response.statusText}` };
-                }
-            }
-
-            const data = await response.json();
-            const user = data.user;
-            if (user) {
-                localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-                return { user };
-            }
-            return { user: null, error: data.error || 'Google exchange failed' };
-        } catch (error) {
-            console.error('Google Exchange Error:', error);
-            return { user: null, error: 'Network error' };
+            console.error('[AuthService] Fetch error:', error);
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            return { user: null, error: `Network error connecting to ${url}: ${errorMsg}` };
         }
     },
 

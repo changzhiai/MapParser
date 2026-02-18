@@ -38,4 +38,7 @@ server/node_modules
 *map_parser.db
 
 # TypeScript
-*.tsbuildinfo
+# Google Services
+GoogleService-Info.plist
+google-services.json
+Secrets.xcconfig
