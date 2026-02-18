@@ -1,0 +1,72 @@
+{
+  "object" : {
+    "artifacts" : [
+      {
+        "kind" : "xcframework",
+        "packageRef" : {
+          "identity" : "capacitor-swift-pm",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
+          "name" : "capacitor-swift-pm"
+        },
+        "path" : "/Users/changzhi/Documents/MapPlugins/MapParser/ios/App/CapApp-SPM/.build/artifacts/capacitor-swift-pm/Capacitor/Capacitor.xcframework",
+        "source" : {
+          "checksum" : "b460c4674e594352d577a50f8c8c93cb78e624932d700a7015667a738f978306",
+          "type" : "remote",
+          "url" : "https://github.com/ionic-team/capacitor-swift-pm/releases/download/7.5.0/Capacitor.xcframework.zip"
+        },
+        "targetName" : "Capacitor"
+      },
+      {
+        "kind" : "xcframework",
+        "packageRef" : {
+          "identity" : "capacitor-swift-pm",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
+          "name" : "capacitor-swift-pm"
+        },
+        "path" : "/Users/changzhi/Documents/MapPlugins/MapParser/ios/App/CapApp-SPM/.build/artifacts/capacitor-swift-pm/Cordova/Cordova.xcframework",
+        "source" : {
+          "checksum" : "b481715abaf8de01d4e74fc99aea85c6eb8475b010fd96608bb4748d64794f6e",
+          "type" : "remote",
+          "url" : "https://github.com/ionic-team/capacitor-swift-pm/releases/download/7.5.0/Cordova.xcframework.zip"
+        },
+        "targetName" : "Cordova"
+      }
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "capacitor-swift-pm",
+          "kind" : "remoteSourceControl",
+          "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
+          "name" : "capacitor-swift-pm"
+        },
+        "state" : {
+          "checkoutState" : {
+            "revision" : "abbe3387892339dbb29a0022a5d802ebb693ac72",
+            "version" : "7.5.0"
+          },
+          "name" : "sourceControlCheckout"
+        },
+        "subpath" : "capacitor-swift-pm"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "status-bar",
+          "kind" : "fileSystem",
+          "location" : "/Users/changzhi/Documents/MapPlugins/MapParser/node_modules/@capacitor/status-bar",
+          "name" : "CapacitorStatusBar"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/changzhi/Documents/MapPlugins/MapParser/node_modules/@capacitor/status-bar"
+        },
+        "subpath" : "status-bar"
+      }
+    ]
+  },
+  "version" : 6
+}

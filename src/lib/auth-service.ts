@@ -52,6 +52,8 @@ export const authService = {
             }
             return { user: null, error: data.error || 'Login failed' };
         } catch (error) {
+            console.error('Login Error:', error);
+            if (error instanceof Error) return { user: null, error: error.message };
             return { user: null, error: 'Network error' };
         }
     },
@@ -74,6 +76,7 @@ export const authService = {
             }
             return { user: null, error: data.error || 'Google login failed' };
         } catch (error) {
+            console.error('Google Login Error:', error);
             return { user: null, error: 'Network error' };
         }
     },
@@ -96,6 +99,7 @@ export const authService = {
             }
             return { user: null, error: data.error || 'Apple login failed' };
         } catch (error) {
+            console.error('Apple Login Error:', error);
             return { user: null, error: 'Network error' };
         }
     },
@@ -116,6 +120,7 @@ export const authService = {
             }
             return { success: false, error: data.error || 'Registration failed' };
         } catch (error) {
+            console.error('Register Error:', error);
             return { success: false, error: 'Network error' };
         }
     },
@@ -130,6 +135,7 @@ export const authService = {
             const data = await response.json();
             return { success: response.ok, message: data.error || data.message };
         } catch (error) {
+            console.error('Send Code Error:', error);
             return { success: false, message: 'Network error' };
         }
     },
@@ -144,6 +150,7 @@ export const authService = {
             const data = await response.json();
             return { success: response.ok, message: data.error || data.message };
         } catch (error) {
+            console.error('Reset Password Error:', error);
             return { success: false, message: 'Network error' };
         }
     },
@@ -178,6 +185,7 @@ export const authService = {
             }
             return { success: false, message: data.error || 'Update failed' };
         } catch (error) {
+            console.error('Update Profile Error:', error);
             return { success: false, message: 'Network error' };
         }
     },
@@ -196,6 +204,7 @@ export const authService = {
             }
             return { success: false, message: data.error || 'Delete failed' };
         } catch (error) {
+            console.error('Delete Account Error:', error);
             return { success: false, message: 'Network error' };
         }
     },
@@ -217,6 +226,7 @@ export const authService = {
             const data = await response.json();
             return { success: response.ok, error: data.error, tripId: data.tripId };
         } catch (error) {
+            console.error('Save Trip Error:', error);
             return { success: false, error: 'Network error' };
         }
     },
@@ -232,6 +242,7 @@ export const authService = {
             const data = await response.json();
             return { success: response.ok, error: data.error };
         } catch (error) {
+            console.error('Update Trip Error:', error);
             return { success: false, error: 'Network error' };
         }
     },
@@ -256,6 +267,7 @@ export const authService = {
             });
             return response.ok;
         } catch (error) {
+            console.error('Delete Trip Error:', error);
             return false;
         }
     }

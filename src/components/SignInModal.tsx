@@ -1,22 +1,23 @@
-
 'use client';
 
 import React, { useState } from 'react';
 import { authService } from '@/lib/auth-service';
-import { useGoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import AppleSignin from 'react-apple-signin-auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, Key, AlertCircle, Loader2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 interface SignInModalProps {
     isOpen: boolean;
     onClose: () => void;
     onLoginSuccess: (username: string) => void;
+    onGoogleSignIn?: () => void;
+    isExternalLoading?: boolean;
 }
 
 type Mode = 'signin' | 'register' | 'reset';
 
-function SignInContent({ isOpen, onClose, onLoginSuccess }: SignInModalProps) {
+export function SignInModal({ isOpen, onClose, onLoginSuccess, onGoogleSignIn, isExternalLoading }: SignInModalProps) {
     const [mode, setMode] = useState<Mode>('signin');
     const [resetStep, setResetStep] = useState<'email' | 'verification'>('email');
     const [username, setUsername] = useState('');
@@ -26,20 +27,12 @@ function SignInContent({ isOpen, onClose, onLoginSuccess }: SignInModalProps) {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    const loginWithGoogle = useGoogleLogin({
-        onSuccess: async (tokenResponse) => {
-            setLoading(true);
-            const result = await authService.googleLogin(tokenResponse.access_token, true);
-            setLoading(false);
-            if (result.user) {
-                onLoginSuccess(result.user.username);
-                onClose();
-            } else {
-                setError(result.error || 'Google login failed');
-            }
-        },
-        onError: () => setError('Google Login Failed'),
-    });
+    const handleGoogleSignIn = () => {
+        if (onGoogleSignIn) {
+            console.log('Google Sign-In button clicked');
+            onGoogleSignIn();
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -89,6 +82,7 @@ function SignInContent({ isOpen, onClose, onLoginSuccess }: SignInModalProps) {
             setLoading(false);
         }
     };
+
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
@@ -185,10 +179,10 @@ function SignInContent({ isOpen, onClose, onLoginSuccess }: SignInModalProps) {
 
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || isExternalLoading}
                             className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2"
                         >
-                            {loading ? <Loader2 className="animate-spin" size={20} /> : (mode === 'signin' ? 'Sign In' : mode === 'register' ? 'Create Account' : resetStep === 'email' ? 'Send Code' : 'Reset Password')}
+                            {(loading || isExternalLoading) ? <Loader2 className="animate-spin" size={20} /> : (mode === 'signin' ? 'Sign In' : mode === 'register' ? 'Create Account' : resetStep === 'email' ? 'Send Code' : 'Reset Password')}
                         </button>
                     </form>
 
@@ -202,8 +196,9 @@ function SignInContent({ isOpen, onClose, onLoginSuccess }: SignInModalProps) {
 
                             <div className="flex flex-col gap-3">
                                 <button
-                                    onClick={() => loginWithGoogle()}
-                                    className="flex items-center justify-center gap-3 w-full py-2.5 bg-white text-black rounded-full font-medium transition-all hover:bg-gray-100"
+                                    onClick={handleGoogleSignIn}
+                                    disabled={loading || isExternalLoading}
+                                    className="relative z-[150] flex items-center justify-center gap-3 w-full py-2.5 bg-white text-black rounded-full font-medium transition-all hover:bg-gray-100 disabled:opacity-50"
                                 >
                                     <svg width="18" height="18" viewBox="0 0 18 18">
                                         <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4" />
@@ -241,7 +236,8 @@ function SignInContent({ isOpen, onClose, onLoginSuccess }: SignInModalProps) {
                                     render={(props: any) => (
                                         <button
                                             {...props}
-                                            className="flex items-center justify-center gap-2 w-full py-2.5 bg-black text-white rounded-full font-medium transition-all hover:bg-gray-900 border border-white/10"
+                                            disabled={loading || isExternalLoading}
+                                            className="flex items-center justify-center gap-2 w-full py-2.5 bg-black text-white rounded-full font-medium transition-all hover:bg-gray-900 border border-white/10 disabled:opacity-50"
                                         >
                                             <svg className="w-4 h-4" viewBox="0 0 170 170" fill="currentColor">
                                                 <path d="M150.37,130.25c-2.45,5.66-5.35,10.89-8.71,15.66c-8.58,12.13-17.52,21.41-26.83,27.85c-9.31,6.44-18.4,9.66-27.27,9.66 c-4.22,0-8.89-1.04-14-3.12c-5.11-2.08-10.3-3.12-15.58-3.12c-5.28,0-10.51,1.04-15.71,3.12c-5.2,2.08-9.83,3.12-13.88,3.12 c-9.15,0-18.73-3.46-28.71-10.38c-9.98-6.92-18.74-16.74-26.29-29.47C5.97,114.24,2,97.77,2,83.98c0-14.16,2.44-26.54,7.31-37.12 c4.87-10.58,11.51-18.89,19.92-24.96c8.41-6.07,17.76-9.11,28.05-9.11c4.54,0,9.97,1.21,16.28,3.63c6.31,2.42,11.39,3.63,15.25,3.63 c3.14,0,7.88-1.21,14.21-3.63c6.33-2.42,12.11-3.63,17.34-3.63c10,0,18.77,2.5,26.3,7.51c7.53,5.01,13.43,11.75,17.71,20.21 c-11.03,6.72-16.55,16.14-16.55,28.27c0,9.81,3.29,17.96,9.87,24.46c6.58,6.5,14.34,10.43,23.27,11.79 C157.06,114.07,154.54,121.75,150.37,130.25z M119.23,30.3c-5.46,6.6-11.95,10.03-19.47,10.28c-0.45-8.48,2.7-16.51,9.45-24.08 c6.76-7.57,14.31-11.64,22.66-12.2c0.75,8.87-4.11,18.06-9.4,24.36L119.23,30.3z" />
@@ -282,13 +278,5 @@ function SignInContent({ isOpen, onClose, onLoginSuccess }: SignInModalProps) {
                 </div>
             </motion.div>
         </div>
-    );
-}
-
-export function SignInModal(props: SignInModalProps) {
-    return (
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '669794635864-qht6ovr1m8nql54sco7mve29qonmbkjl.apps.googleusercontent.com'}>
-            <SignInContent {...props} />
-        </GoogleOAuthProvider>
     );
 }

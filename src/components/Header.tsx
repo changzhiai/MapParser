@@ -10,6 +10,10 @@ import { authService, User as AuthUser } from '@/lib/auth-service';
 import { SignInModal } from '@/components/SignInModal';
 import { ProfileModal } from '@/components/ProfileModal';
 import { AboutModal } from '@/components/AboutModal';
+import { useGoogleLogin } from '@react-oauth/google';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { App } from '@capacitor/app';
 
 export function Header() {
     const [user, setUser] = useState<AuthUser | null>(null);
@@ -17,27 +21,160 @@ export function Header() {
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isAuthLoading, setIsAuthLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
-    const router = useRouter(); // Initialize router
+    const router = useRouter();
+
+    const loginWithGoogle = useGoogleLogin({
+        onSuccess: async (tokenResponse: any) => {
+            console.log('Google login success, token received:', tokenResponse);
+            setIsAuthLoading(true);
+            try {
+                const result = await authService.googleLogin(tokenResponse.access_token, true);
+                if (result.user) {
+                    setUser(result.user);
+                    window.dispatchEvent(new Event('auth-change'));
+                } else {
+                    console.error('Google login failed:', result.error);
+                }
+            } catch (err) {
+                console.error('Error during Google login service call:', err);
+            } finally {
+                setIsAuthLoading(false);
+                setIsSignInModalOpen(false);
+            }
+        },
+        onError: (error: any) => {
+            console.error('Google Login Error callback:', error);
+            setIsAuthLoading(false);
+        },
+        flow: 'implicit',
+        ux_mode: 'redirect',
+        redirect_uri: 'https://localhost/',
+    } as any);
+
+    const handleSocialLoginSuccess = async (token: string) => {
+        setIsAuthLoading(true);
+        console.log('🔄 Processing social login token...');
+        try {
+            const result = await authService.googleLogin(token, true);
+            if (result.user) {
+                setUser(result.user);
+                window.dispatchEvent(new Event('auth-change'));
+                return true;
+            }
+        } catch (err) {
+            console.error('Login process failed:', err);
+        } finally {
+            setIsAuthLoading(false);
+        }
+        return false;
+    };
+
+    const handleGoogleLoginStart = async () => {
+        console.log('--- Google Login Start (Browser Flow) ---');
+
+        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+        if (!clientId) {
+            console.error('❌ Google Client ID is not configured (NEXT_PUBLIC_GOOGLE_CLIENT_ID missing)');
+            alert('Google Login is not configured correctly on this build.');
+            return;
+        }
+
+        // Use our new bridge page as the redirect to bypass Google's custom scheme restriction
+        const redirectUri = Capacitor.isNativePlatform()
+            ? 'https://mapparser.travel-tracker.org/google-callback'
+            : 'https://localhost/';
+
+        const scope = 'openid email profile';
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&prompt=select_account`;
+
+        try {
+            if (Capacitor.isNativePlatform()) {
+                console.log('🚀 Opening System Browser for login...');
+                await Browser.open({ url: authUrl });
+            } else {
+                console.log('🚀 Redirecting to Google login...');
+                window.location.href = authUrl;
+            }
+        } catch (err) {
+            console.error('Failed to open browser:', err);
+            if (Capacitor.isNativePlatform()) {
+                alert(`Error: ${JSON.stringify(err)}`);
+            }
+        }
+    };
 
     useEffect(() => {
-        // Check for user on mount
+        // 1. Handle fragment token on mount (for web or same-session redirect)
+        const checkHash = () => {
+            const hash = window.location.hash;
+            if (hash && hash.includes('access_token=')) {
+                const params = new URLSearchParams(hash.substring(1));
+                const accessToken = params.get('access_token');
+                if (accessToken) {
+                    handleSocialLoginSuccess(accessToken).then(success => {
+                        if (success) {
+                            window.history.replaceState(null, '', window.location.pathname);
+                            setIsSignInModalOpen(false);
+                        }
+                    });
+                }
+            }
+        };
+        checkHash();
+
+        // Helper to process URLs (from both launch and foreground opens)
+        const processDeepLink = async (urlStr: string) => {
+            console.log('🔗 Processing deep link:', urlStr.split('#')[0] + (urlStr.includes('#') ? '#...' : ''));
+
+            if (urlStr.includes('access_token=')) {
+                // Extract token from either query or hash
+                let tokenPart = '';
+                if (urlStr.includes('access_token=')) {
+                    tokenPart = urlStr.split('access_token=')[1].split('&')[0];
+                }
+
+                if (tokenPart) {
+                    console.log('✅ Found token in deep link!');
+                    await Browser.close().catch(() => { });
+                    const success = await handleSocialLoginSuccess(tokenPart);
+                    if (success) setIsSignInModalOpen(false);
+                }
+            }
+        };
+
+        // 2. Handle deep links (for native browser-to-app bridge)
+        let appListener: any;
+        if (Capacitor.isNativePlatform()) {
+            (async () => {
+                // Check if the app was actually launched via a deep link
+                const launchUrl = await App.getLaunchUrl();
+                if (launchUrl) {
+                    processDeepLink(launchUrl.url);
+                }
+
+                // Listen for deep links while the app is in the background
+                appListener = await App.addListener('appUrlOpen', (data: any) => {
+                    processDeepLink(data.url);
+                });
+            })();
+        }
+
         const currentUser = authService.getCurrentUser();
         setUser(currentUser);
-
-        // Listen for auth changes (custom event or just polling/re-checking)
-        // Since we don't have a global auth event system yet, we might need to rely on 
-        // the page reloading or lightweight polling, or dispatching events.
-        // For now, let's add a window event listener for our own custom event if we want to be fancy,
-        // or just rely on the fact that login/logout usually redirects or reloads.
 
         const handleAuthChange = () => {
             setUser(authService.getCurrentUser());
         };
 
         window.addEventListener('auth-change', handleAuthChange);
-        return () => window.removeEventListener('auth-change', handleAuthChange);
+        return () => {
+            window.removeEventListener('auth-change', handleAuthChange);
+            if (appListener) appListener.remove();
+        };
     }, []);
 
     // Close dropdown when clicking outside
@@ -79,8 +216,8 @@ export function Header() {
 
     return (
         <>
-            <header className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-md border-b border-white/10">
-                <div className="w-full max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
+            <header className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-md border-b border-white/10 pt-[env(safe-area-inset-top)]">
+                <div className="w-full max-w-7xl mx-auto px-3 md:px-6 h-16 md:h-20 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-3 group" onClick={() => window.dispatchEvent(new Event('map-reset'))}>
                         <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500/30 transition-colors">
                             <Image src="/icon.svg" alt="MapParser Logo" width={32} height={32} className="w-8 h-8" />
@@ -171,6 +308,8 @@ export function Header() {
                 isOpen={isSignInModalOpen}
                 onClose={() => setIsSignInModalOpen(false)}
                 onLoginSuccess={handleLoginSuccess}
+                onGoogleSignIn={handleGoogleLoginStart}
+                isExternalLoading={isAuthLoading}
             />
             <ProfileModal
                 isOpen={isProfileModalOpen}
@@ -183,7 +322,7 @@ export function Header() {
                 onClose={() => setIsAboutModalOpen(false)}
             />
             {/* Spacer for fixed header */}
-            <div className="h-20"></div>
+            <div className="h-16 md:h-20 mt-[env(safe-area-inset-top)]"></div>
         </>
     );
 }

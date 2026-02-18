@@ -18,8 +18,19 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const app = express();
 const PORT = process.env.SERVER_PORT || 3001;
 
-app.use(cors());
+// Log all requests
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const googleClient = new OAuth2Client(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
@@ -139,6 +150,52 @@ app.post('/api/google-login', async (req, res) => {
         });
     } catch (error) {
         res.status(401).json({ error: 'Invalid Google token' });
+    }
+});
+
+app.post('/api/apple-callback', (req, res) => {
+    try {
+        const { code, id_token, state, user } = req.body;
+
+        // This HTML will be rendered inside the Apple popup window.
+        // It sends the data back to the main application window and then closes itself.
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Apple Sign In Callback</title>
+</head>
+<body>
+    <script>
+        const response = {
+            authorization: {
+                code: ${code ? `'${code}'` : 'null'},
+                id_token: ${id_token ? `'${id_token}'` : 'null'},
+                state: ${state ? `'${state}'` : 'null'}
+            },
+            user: ${user ? (typeof user === 'string' ? user : JSON.stringify(user)) : 'null'}
+        };
+        
+        if (window.opener) {
+            // Post message back to the parent window (SignInModal)
+            window.opener.postMessage(response, window.location.origin);
+            window.close();
+        } else {
+            // Fallback for non-popup flows
+            window.location.href = '/?apple_auth_success=true';
+        }
+    </script>
+    <div style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh;">
+        <p>Completing your sign-in...</p>
+    </div>
+</body>
+</html>
+`;
+
+        res.type('html').send(html);
+    } catch (error) {
+        console.error('Apple callback error:', error);
+        res.status(500).send('Internal Server Error');
     }
 });
 

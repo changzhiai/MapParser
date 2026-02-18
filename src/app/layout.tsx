@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
+import { ClientConfig } from "@/components/ClientConfig";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -13,6 +14,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: 'cover',
 };
 
 export const metadata: Metadata = {
@@ -24,8 +26,24 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://mapparser.travel-tracker.org',
   },
-  description: "Easily parse and export Google Maps routes to CSV, or KML. Visualize multiple routes and export for Google My Maps.",
-  keywords: ["Google Maps", "Route Parser", "Export KML", "Export CSV", "My Maps", "Map visualization", "Route Planner", "Navigation"],
+  description: "Easily parse and export Google Maps routes to CSV, or KML. Visualize multiple routes and export for Google My Maps. Free tool to extract waypoints and coordinates.",
+  keywords: [
+    "MapParser",
+    "Google Maps",
+    "Route Parser",
+    "Export KML",
+    "Export CSV",
+    "My Maps",
+    "Map visualization",
+    "Route Planner",
+    "Navigation",
+    "Google Maps to Excel",
+    "Extract Waypoints",
+    "Driving Directions Export",
+    "Coordinates Extractor",
+    "Gmap to CSV",
+    "Route Stops Downloader"
+  ],
   authors: [{ name: "MapParser Team" }],
   creator: "Changzhi Ai",
   openGraph: {
@@ -54,6 +72,13 @@ export const metadata: Metadata = {
     icon: "/icon.svg",
     apple: "/apple-icon.png",
   },
+  appleWebApp: {
+    title: "MapParser",
+    statusBarStyle: "black-translucent",
+    startupImage: [
+      "/apple-icon.png",
+    ],
+  },
   robots: {
     index: true,
     follow: true,
@@ -67,6 +92,9 @@ export const metadata: Metadata = {
   },
 };
 
+import { GoogleAuthProvider } from "@/components/GoogleAuthProvider";
+import Script from 'next/script';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -74,9 +102,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          strategy="beforeInteractive"
+        />
+      </head>
       <body className={outfit.className}>
-        <Header />
-        {children}
+        <GoogleAuthProvider>
+          <ClientConfig />
+          <Header />
+          {children}
+        </GoogleAuthProvider>
       </body>
     </html>
   );
