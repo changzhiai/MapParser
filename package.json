@@ -9,7 +9,8 @@
     "build": "NODE_OPTIONS='--max-old-space-size=4096' next build --webpack",
     "start": "next start -p 3002",
     "lint": "eslint",
-    "sync:ios": "npx cap sync ios"
+    "sync:ios": "npx cap sync ios",
+    "serve": "serve -s out -p 3002"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
@@ -35,6 +36,7 @@
     "react-apple-signin-auth": "^1.1.2",
     "react-dom": "19.2.3",
     "react-leaflet": "^5.0.0",
+    "serve": "^14.2.4",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
