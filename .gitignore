@@ -35,10 +35,7 @@ Thumbs.db
 # Server database
 server/map_parser.db
 server/node_modules
-
-# Capacitor
-/android
-/ios
+*map_parser.db
 
 # TypeScript
 *.tsbuildinfo
