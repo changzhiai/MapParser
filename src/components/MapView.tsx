@@ -8,6 +8,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Car, Bike, Footprints, Maximize2, Minimize2 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/auth-service';
+import { Capacitor } from '@capacitor/core';
 
 // function to generate A, B, C... labels
 const createAlphabetIcon = (index: number) => {
@@ -117,7 +118,7 @@ function MapController({ waypoints, mode, setMode, isFullscreen, setIsFullscreen
                             e.stopPropagation();
                             setIsFullscreen(!isFullscreen);
                         }}
-                        className="p-2.5 bg-white rounded-lg hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-lg transition-all"
+                        className="p-2.5 bg-white rounded-lg hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-lg transition-all relative z-[1001]"
                         title={isFullscreen ? "Exit Fullscreen" : "Fullscreen View"}
                     >
                         {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
@@ -232,7 +233,7 @@ export default function MapView({ waypoints }: MapViewProps) {
 
     const mapContent = (
         <div
-            className={`rounded-xl overflow-hidden shadow-xl bg-gray-900 transition-all duration-300 ${isFullscreen ? '' : 'border border-white/10 relative z-0'}`}
+            className={`rounded-xl overflow-hidden shadow-xl bg-gray-900 transition-all duration-300 ${isFullscreen ? (Capacitor.isNativePlatform() ? 'is-native-app' : '') : 'border border-white/10 relative z-0'}`}
             style={isFullscreen ? {
                 position: 'fixed',
                 inset: 0,
@@ -240,7 +241,6 @@ export default function MapView({ waypoints }: MapViewProps) {
                 height: '100dvh',
                 zIndex: 99999,
                 margin: 0,
-                padding: 0,
                 borderRadius: 0
             } : {
                 position: 'relative',

@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer, Polyline, Marker } from '@react-google-maps/api';
 import { Waypoint } from '@/lib/map-parser';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Maximize2, Minimize2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { createPortal } from 'react-dom';
 
 const containerStyle = {
     width: '100%',
@@ -14,6 +16,7 @@ const containerStyle = {
 const mapOptions = {
     disableDefaultUI: false,
     zoomControl: true,
+    fullscreenControl: false, // Use our custom one for safe-area support
     mapTypeControl: false,
     streetViewControl: false,
     styles: [
@@ -106,6 +109,30 @@ export default function GoogleMapView({ waypoints, url, mode: controlledMode, on
     const mode = isControlled ? controlledMode : internalMode;
     const setMode = isControlled ? onModeChange : setInternalMode;
     const [embedUrl, setEmbedUrl] = useState('');
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Escape listener
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setIsFullscreen(false);
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
+    // Locking body scroll when fullscreen
+    useEffect(() => {
+        if (isFullscreen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+    }, [isFullscreen]);
 
     useEffect(() => {
         // Construct Embed URL
@@ -285,15 +312,49 @@ export default function GoogleMapView({ waypoints, url, mode: controlledMode, on
         );
     }
 
-    return (
-        <div className="w-full h-[500px] rounded-xl overflow-hidden border border-white/10 shadow-xl relative z-0">
+    const mapContent = (
+        <div
+            className={`rounded-xl overflow-hidden shadow-xl bg-gray-900 transition-all duration-300 ${isFullscreen ? (Capacitor.isNativePlatform() ? 'is-native-app' : '') : 'border border-white/10 relative z-0'}`}
+            style={isFullscreen ? {
+                position: 'fixed',
+                inset: 0,
+                width: '100vw',
+                height: '100dvh',
+                zIndex: 99999,
+                margin: 0,
+                padding: 0,
+                background: '#111',
+                borderRadius: 0
+            } : {
+                position: 'relative',
+                width: '100%',
+                height: '500px'
+            }}
+        >
             <GoogleMap
-                mapContainerStyle={containerStyle}
+                mapContainerStyle={{ width: '100%', height: '100%' }}
                 center={waypoints[0]?.coords || { lat: 0, lng: 0 }}
                 zoom={10}
                 onLoad={onMapLoad}
                 options={mapOptions}
             >
+                {/* Custom Fullscreen Control - Top Right */}
+                <div className="leaflet-top leaflet-right" style={{ pointerEvents: 'none' }}>
+                    <div className="leaflet-control leaflet-bar !border-0">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsFullscreen(!isFullscreen);
+                            }}
+                            className="p-2.5 bg-white rounded-lg hover:bg-gray-50 text-gray-700 border border-gray-200 shadow-lg transition-all pointer-events-auto"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen View"}
+                        >
+                            {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+                        </button>
+                    </div>
+                </div>
+
                 {/* Render Segments */}
                 {segments.map(seg => {
                     if (seg.status === 'success' && seg.result) {
@@ -303,9 +364,9 @@ export default function GoogleMapView({ waypoints, url, mode: controlledMode, on
                                 options={{
                                     directions: seg.result,
                                     preserveViewport: true,
-                                    suppressMarkers: true, // We draw our own markers
+                                    suppressMarkers: true,
                                     polylineOptions: {
-                                        strokeColor: "#4285F4", // Google Blue
+                                        strokeColor: "#4285F4",
                                         strokeWeight: 5
                                     }
                                 }}
@@ -317,7 +378,7 @@ export default function GoogleMapView({ waypoints, url, mode: controlledMode, on
                                 key={seg.id}
                                 path={seg.path}
                                 options={{
-                                    strokeColor: "#FF4444", // Red for direct lines
+                                    strokeColor: "#FF4444",
                                     strokeOpacity: 0.7,
                                     strokeWeight: 4,
                                     geodesic: true,
@@ -348,8 +409,14 @@ export default function GoogleMapView({ waypoints, url, mode: controlledMode, on
                         />
                     )
                 ))}
-
             </GoogleMap>
         </div>
-    )
+    );
+
+    return (
+        <>
+            {isFullscreen && mounted ? createPortal(mapContent, document.body) : mapContent}
+            {isFullscreen && <div className="w-full h-[500px] rounded-xl bg-gray-900/10 border border-white/5" />}
+        </>
+    );
 }

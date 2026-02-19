@@ -499,24 +499,26 @@ function MapParserContent() {
                                             </Suspense>
                                         )}
 
-                                        {mapProvider === 'google' && (
-                                            <div className="flex items-center justify-between w-full">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setGoogleMapMode(googleMapMode === 'embed' ? 'interactive' : 'embed')}
-                                                    className="bg-black/50 hover:bg-black/70 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-md border border-white/20 transition-all font-medium shadow-sm"
-                                                >
-                                                    {googleMapMode === 'embed' ? 'Switch to Interactive' : 'Show Embed View'}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => window.open(googleMapsUrl, '_blank', 'noopener,noreferrer')}
-                                                    className="bg-white hover:bg-gray-100 text-black text-xs px-4 py-2 rounded-full font-bold shadow-lg border border-gray-200 flex items-center gap-2 transition-all whitespace-nowrap shrink-0"
-                                                >
-                                                    Open on Google Maps
-                                                </button>
+                                        <div className="flex items-center justify-between w-full">
+                                            <div>
+                                                {mapProvider === 'google' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setGoogleMapMode(googleMapMode === 'embed' ? 'interactive' : 'embed')}
+                                                        className="bg-black/50 hover:bg-black/70 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-md border border-white/20 transition-all font-medium shadow-sm"
+                                                    >
+                                                        {googleMapMode === 'embed' ? 'Switch to Interactive' : 'Show Embed View'}
+                                                    </button>
+                                                )}
                                             </div>
-                                        )}
+                                            <button
+                                                type="button"
+                                                onClick={() => window.open(googleMapsUrl, '_blank', 'noopener,noreferrer')}
+                                                className="bg-white hover:bg-gray-100 text-black text-xs px-4 py-2 rounded-full font-bold shadow-lg border border-gray-200 flex items-center gap-2 transition-all whitespace-nowrap shrink-0"
+                                            >
+                                                Open on Google Maps
+                                            </button>
+                                        </div>
                                     </>
                                 ) : (
                                     <div className="text-center py-12 flex flex-col items-center justify-center">
@@ -555,18 +557,13 @@ function MapParserContent() {
                                 <Bookmark className="text-indigo-400" size={24} />
                                 My Recent Trips
                             </h2>
-                            <a href="/my-trips" onClick={(e) => { e.preventDefault(); window.location.href = '/my-trips'; }} className="text-indigo-300 hover:text-white text-sm font-medium flex items-center gap-1 transition-colors">
-                                View All <ArrowRight size={16} />
-                            </a>
                         </div>
                         {/* Detailed cards for home page */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {trips.slice(0, 4).map(trip => (
                                 <div key={trip.id} className="p-5 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all group flex flex-col gap-3 relative overflow-hidden">
-
-
                                     <div className="flex justify-between items-start gap-4">
-                                        <h3 className="font-bold text-lg text-indigo-400 group-hover:text-indigo-300 transition-colors line-clamp-1" title={trip.name}>{trip.name}</h3>
+                                        <h3 className="font-bold text-lg text-white group-hover:text-white/80 transition-colors line-clamp-1" title={trip.name}>{trip.name}</h3>
                                         {trip.year && (
                                             <span className="shrink-0 text-xs font-mono bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-500/30">{trip.year}</span>
                                         )}
@@ -595,12 +592,22 @@ function MapParserContent() {
                                         <button onClick={() => {
                                             setUrl(trip.link);
                                             handleAnalyze(trip.link);
-                                        }} className="text-white bg-white/5 hover:bg-white/15 border border-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
-                                            Parse Route
+                                        }}
+                                            className="text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-lg"
+                                            style={{
+                                                backgroundColor: 'oklch(0.585 0.233 277.117)',
+                                                boxShadow: '0 4px 12px oklch(0.585 0.233 277.117 / 0.2)'
+                                            }}>
+                                            View Route
                                         </button>
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                        <div className="flex justify-center pt-2">
+                            <a href="/my-trips" onClick={(e) => { e.preventDefault(); window.location.href = '/my-trips'; }} className="text-indigo-300 hover:text-white text-sm font-medium flex items-center gap-1 transition-colors bg-white/5 px-6 py-2 rounded-full border border-white/10 hover:bg-white/10">
+                                View All <ArrowRight size={16} />
+                            </a>
                         </div>
                     </div>
                 )}
