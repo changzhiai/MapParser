@@ -1,101 +1,49 @@
-# Redeployment and Branch Shifting Guide (Dual Port Setup)
+# Redeployment and Branch Shifting
 
-This guide explains how to update the deployment on the AWS server (Port 3002 for Frontend, 4002 for Backend).
+Follow these steps to shift from `dev` to `release` (or any other branch) on your AWS server.
 
 ## 1. Connect to the Server
 ```bash
-ssh ubuntu@54.151.8.244
+ssh ubuntu@mapparser.travel-tracker.org
 ```
 
-## 2. Navigate and Switch Branch
+## 2. Shift Branch
+Navigate to the app directory and switch branches:
 ```bash
 cd ~/MapParser
 
-# Update local git info
+# 1. Fetch latest changes from remote
 git fetch origin
 
-# Switch to the desired branch (e.g., dev)
-git checkout dev
-git pull origin dev
+# 2. Switch to release branch
+git checkout release
+
+# 3. Pull the latest code
+git pull origin release
 ```
 
-## 3. Update Environment Variables
-Ensure `.env.local` ON THE SERVER has these settings:
+## 3. Rebuild Application
+Whenever you switch branches or pull new code, you must rebuild the frontend:
 ```bash
-# Frontend Port
-PORT=3002
-
-# Backend Configuration
-SERVER_PORT=4002
-NEXT_PUBLIC_API_BASE_URL=https://mapparser.travel-tracker.org
-
-# Apple Redirect (Must match dev portal)
-NEXT_PUBLIC_APPLE_REDIRECT_URI=https://mapparser.travel-tracker.org/api/apple-callback
-
-# Email Configuration
-EMAIL_SERVICE=gmail
-EMAIL_USER=changzhiai@gmail.com
-EMAIL_PASS=your_app_password_here
-```
-
-## 4. Update Nginx Configuration
-Your Nginx config (`/etc/nginx/sites-available/map-parser`) **must** include the API route handler. 
-Edit with: `sudo nano /etc/nginx/sites-available/map-parser`
-
-```nginx
-server {
-    server_name mapparser.travel-tracker.org;
-
-    # Frontend (Next.js)
-    location / {
-        proxy_pass http://localhost:3002;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    # Backend API (Express Server)
-    location /api/ {
-        proxy_pass http://localhost:4002;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    listen 443 ssl; # ... Certbot configuration follows
-}
-```
-After editing, run:
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-## 5. Build and Restart
-```bash
-# Install & Build Frontend
+# Install any new dependencies
 npm install
+
+# Build the new production frontend
 npm run build
-
-# Restart Everything
-pm2 restart ecosystem.config.js --env production
-
-# If starting for the first time:
-# pm2 start ecosystem.config.js --env production
 ```
 
-## 6. Verify
+## 4. Restart the Service
+Restart the running PM2 process to pick up the new backend changes:
 ```bash
-pm2 status
-# You should see 'map-parser' (3002) and 'map-parser-backend' (4002) both 'online'
+# Restart using the ecosystem file
+pm2 restart ecosystem.config.cjs --env production
 
-# Check logs if there are issues
-pm2 logs
+# Verify it is running
+pm2 status
 ```
+
+## 5. Troubleshooting
+If the app doesn't start correctly:
+- **Check Logs:** `pm2 logs map-parser`
+- **Port Conflict:** If the port is busy, run `sudo fuser -k 3002/tcp` and then restart PM2.
+- **Env Variables:** Ensure your `.env.local` is still present in the root folder.
