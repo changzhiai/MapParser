@@ -65,15 +65,23 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
     const handleGoogleLogin = async () => {
         if (Capacitor.isNativePlatform()) {
             try {
-                // Initialize if needed (though usually handled by plugin on load)
-                // await SocialLogin.initialize({ google: { webClientId: '...' } }); 
-                // But easier to rely on config.
+                // Ensure the plugin is initialized with the correct client IDs
+                const isIos = Capacitor.getPlatform() === 'ios';
+                await SocialLogin.initialize({
+                    google: {
+                        webClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+                        iOSClientId: import.meta.env.VITE_IOS_GOOGLE_CLIENT_ID,
+                    },
+                    apple: {
+                        clientId: import.meta.env.VITE_APPLE_CLIENT_ID,
+                        useBroadcastChannel: true,
+                        redirectUrl: isIos ? '' : import.meta.env.VITE_APPLE_REDIRECT_URI
+                    }
+                });
 
                 const response = await SocialLogin.login({
                     provider: 'google',
-                    options: {
-                        scopes: ['email', 'profile']
-                    }
+                    options: {}
                 });
 
                 console.log('Native Google login success:', response);
@@ -113,11 +121,21 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
     const handleAppleLogin = async () => {
         if (Capacitor.isNativePlatform()) {
             try {
+                const isIos = Capacitor.getPlatform() === 'ios';
+                await SocialLogin.initialize({
+                    apple: {
+                        clientId: import.meta.env.VITE_APPLE_CLIENT_ID,
+                        useBroadcastChannel: true,
+                        redirectUrl: isIos ? '' : import.meta.env.VITE_APPLE_REDIRECT_URI
+                    },
+                    google: {
+                        webClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+                        iOSClientId: import.meta.env.VITE_IOS_GOOGLE_CLIENT_ID,
+                    }
+                });
                 const response = await SocialLogin.login({
                     provider: 'apple',
-                    options: {
-                        scopes: ['email', 'name']
-                    }
+                    options: {}
                 });
 
                 console.log('Native Apple login success:', response);

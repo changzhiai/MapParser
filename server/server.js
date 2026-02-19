@@ -90,9 +90,17 @@ app.post('/api/register', (req, res) => {
 
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
+    console.log(`[Login] Attempt for: ${username}`);
     db.verifyUser(username, password, (err, isValid, user) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
+        if (err) {
+            console.error(`[Login] Database error for ${username}:`, err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        if (!isValid) {
+            console.warn(`[Login] Invalid credentials for: ${username}`);
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        console.log(`[Login] Success for: ${username} (ID: ${user.id})`);
         res.json({ message: 'Login successful', user: { id: user.id, username: user.username, email: user.email, hasPassword: true } });
     });
 });
@@ -186,9 +194,10 @@ app.post('/api/apple-login', async (req, res) => {
             console.error('[Apple Auth] Failed to decode token for debugging');
         }
 
-        const audiences = [process.env.VITE_APPLE_CLIENT_ID];
-        // If they are different, we might need to support both. 
-        // For now, let's just log and try to verify.
+        const audiences = [
+            process.env.VITE_APPLE_CLIENT_ID, // Service ID (for Android/Web)
+            'org.traveltracker.mapparser'     // Bundle ID (for iOS)
+        ].filter(Boolean);
 
         const verifiedToken = await appleSignin.verifyIdToken(token, {
             audience: audiences,

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import './index.css'
 import App from './App'
+import { Capacitor } from '@capacitor/core';
 
 import { SocialLogin } from '@capgo/capacitor-social-login';
 
@@ -21,7 +22,9 @@ SocialLogin.initialize({
         iOSClientId: import.meta.env.VITE_IOS_GOOGLE_CLIENT_ID, // Optional but good for explicit config
     },
     apple: {
-        clientId: 'org.traveltracker.mapparser',
+        clientId: import.meta.env.VITE_APPLE_CLIENT_ID,
+        useBroadcastChannel: true,
+        redirectUrl: Capacitor.getPlatform() === 'ios' ? '' : import.meta.env.VITE_APPLE_REDIRECT_URI
     }
 });
 

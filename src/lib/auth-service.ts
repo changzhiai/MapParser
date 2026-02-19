@@ -1,6 +1,13 @@
+import { Capacitor } from '@capacitor/core';
+
 const getBaseUrl = () => {
-    // 1. If we are in a browser on localhost (Vite dev mode), use the local server
-    if (typeof window !== 'undefined') {
+    // 1. Detect if we are in a native mobile environment (Capacitor)
+    const isNative = Capacitor.isNativePlatform();
+
+    // 2. If we are in a browser on localhost (Vite web dev mode), use the local server
+    // But ONLY if we are NOT in a native environment, because on Android/iOS 'localhost'
+    // refers to the device itself, not the dev machine.
+    if (typeof window !== 'undefined' && !isNative) {
         const { hostname, protocol } = window.location;
         // Strict check: only auto-detect for web browsers on local host
         if ((hostname === 'localhost' || hostname === '127.0.0.1') && (protocol === 'http:' || protocol === 'https:')) {
@@ -8,14 +15,14 @@ const getBaseUrl = () => {
         }
     }
 
-    // 2. Otherwise use the env var if provided (Primary for Native/Production)
+    // 3. Use the env var if provided (Primary for Native/Production)
     const envUrl = import.meta.env.VITE_API_BASE_URL;
     if (envUrl) return envUrl;
 
-    // 3. Fallback for native apps or production
+    // 4. Fallback for native apps or production
     if (typeof window !== 'undefined') {
         const { protocol } = window.location;
-        if (protocol === 'capacitor:' || protocol === 'app:') {
+        if (protocol === 'capacitor:' || protocol === 'app:' || isNative) {
             // No env var and we are native? Default to a placeholder or stay empty
             return '';
         }

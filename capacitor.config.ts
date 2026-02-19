@@ -14,7 +14,9 @@ const config: CapacitorConfig = {
         iOSClientId: process.env.VITE_IOS_GOOGLE_CLIENT_ID,
       },
       apple: {
-        clientId: 'org.traveltracker.mapparser',
+        clientId: process.env.VITE_APPLE_CLIENT_ID,
+        useBroadcastChannel: true,
+        redirectUrl: process.env.VITE_APPLE_REDIRECT_URI
       }
     },
   },
