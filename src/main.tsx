@@ -22,8 +22,8 @@ SocialLogin.initialize({
         iOSClientId: import.meta.env.VITE_IOS_GOOGLE_CLIENT_ID, // Optional but good for explicit config
     },
     apple: {
-        clientId: import.meta.env.VITE_APPLE_CLIENT_ID,
-        useBroadcastChannel: true,
+        clientId: Capacitor.getPlatform() === 'ios' ? import.meta.env.VITE_IOS_APPLE_CLIENT_ID : import.meta.env.VITE_APPLE_CLIENT_ID,
+        useBroadcastChannel: false,
         redirectUrl: Capacitor.getPlatform() === 'ios' ? '' : import.meta.env.VITE_APPLE_REDIRECT_URI
     }
 });

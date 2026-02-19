@@ -241,8 +241,14 @@ app.post('/api/apple-callback', (req, res) => {
     const { id_token, user, state } = req.body;
     console.log('Apple callback received:', { hasToken: !!id_token, hasUser: !!user, state });
 
+    // Detect platform from state
+    let baseUrl = '/';
+    if (state && (state.startsWith('platform:mobile') || state.includes('platform:mobile'))) {
+        baseUrl = 'org.traveltracker.mapparser://';
+    }
+
     // Redirect back to the frontend with the token as query parameters
-    let redirectUrl = '/?apple_id_token=' + encodeURIComponent(id_token || '');
+    let redirectUrl = baseUrl + '?apple_id_token=' + encodeURIComponent(id_token || '');
     if (user) {
         redirectUrl += '&apple_user=' + encodeURIComponent(user);
     }
@@ -250,6 +256,7 @@ app.post('/api/apple-callback', (req, res) => {
         redirectUrl += '&state=' + encodeURIComponent(state);
     }
 
+    console.log(`[Apple Callback] Redirecting to: ${redirectUrl}`);
     res.redirect(redirectUrl);
 });
 

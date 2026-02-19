@@ -73,8 +73,8 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                         iOSClientId: import.meta.env.VITE_IOS_GOOGLE_CLIENT_ID,
                     },
                     apple: {
-                        clientId: import.meta.env.VITE_APPLE_CLIENT_ID,
-                        useBroadcastChannel: true,
+                        clientId: Capacitor.getPlatform() === 'ios' ? import.meta.env.VITE_IOS_APPLE_CLIENT_ID : import.meta.env.VITE_APPLE_CLIENT_ID,
+                        useBroadcastChannel: false,
                         redirectUrl: isIos ? '' : import.meta.env.VITE_APPLE_REDIRECT_URI
                     }
                 });
@@ -124,8 +124,8 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                 const isIos = Capacitor.getPlatform() === 'ios';
                 await SocialLogin.initialize({
                     apple: {
-                        clientId: import.meta.env.VITE_APPLE_CLIENT_ID,
-                        useBroadcastChannel: true,
+                        clientId: Capacitor.getPlatform() === 'ios' ? import.meta.env.VITE_IOS_APPLE_CLIENT_ID : import.meta.env.VITE_APPLE_CLIENT_ID,
+                        useBroadcastChannel: false,
                         redirectUrl: isIos ? '' : import.meta.env.VITE_APPLE_REDIRECT_URI
                     },
                     google: {
@@ -135,7 +135,9 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                 });
                 const response = await SocialLogin.login({
                     provider: 'apple',
-                    options: {}
+                    options: {
+                        state: 'platform:mobile'
+                    }
                 });
 
                 console.log('Native Apple login success:', response);

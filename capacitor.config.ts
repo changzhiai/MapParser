@@ -15,7 +15,7 @@ const config: CapacitorConfig = {
       },
       apple: {
         clientId: process.env.VITE_APPLE_CLIENT_ID,
-        useBroadcastChannel: true,
+        useBroadcastChannel: false,
         redirectUrl: process.env.VITE_APPLE_REDIRECT_URI
       }
     },
