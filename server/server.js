@@ -174,10 +174,29 @@ app.post('/api/apple-login', async (req, res) => {
     if (!token) return res.status(400).json({ error: 'Token is required' });
 
     try {
-        const { sub: appleId, email } = await appleSignin.verifyIdToken(token, {
-            audience: process.env.VITE_APPLE_CLIENT_ID,
+        // Debug: Decode token without verification to see what's inside
+        try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                console.log(`[Apple Auth] Token payload audience: ${payload.aud}`);
+                console.log(`[Apple Auth] Expected audience: ${process.env.VITE_APPLE_CLIENT_ID}`);
+            }
+        } catch (e) {
+            console.error('[Apple Auth] Failed to decode token for debugging');
+        }
+
+        const audiences = [process.env.VITE_APPLE_CLIENT_ID];
+        // If they are different, we might need to support both. 
+        // For now, let's just log and try to verify.
+
+        const verifiedToken = await appleSignin.verifyIdToken(token, {
+            audience: audiences,
             ignoreExpiration: false,
         });
+
+        const { sub: appleId, email } = verifiedToken;
+        console.log(`[Apple Auth] Verification successful for: ${email}`);
 
         db.getUserByEmail(email, (err, user) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -204,7 +223,8 @@ app.post('/api/apple-login', async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(401).json({ error: 'Invalid Apple token' });
+        console.error('[Apple Auth] Verification Error:', error.message);
+        res.status(401).json({ error: 'Invalid Apple token', details: error.message });
     }
 });
 

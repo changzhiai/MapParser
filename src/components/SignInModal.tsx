@@ -110,6 +110,41 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
         }
     };
 
+    const handleAppleLogin = async () => {
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const response = await SocialLogin.login({
+                    provider: 'apple',
+                    options: {
+                        scopes: ['email', 'name']
+                    }
+                });
+
+                console.log('Native Apple login success:', response);
+                const token = (response.result as any).idToken;
+
+                if (token) {
+                    setLoading(true);
+                    const result = await authService.appleLogin(token, (response.result as any).user);
+                    setLoading(false);
+
+                    if (result.user) {
+                        onLoginSuccess(result.user.username);
+                        onClose();
+                        resetForm();
+                    } else {
+                        setError(result.error || 'Apple login failed');
+                    }
+                } else {
+                    setError('Apple Login failed: No ID Token');
+                }
+            } catch (error) {
+                console.error('Native Apple Login Error:', error);
+                setError(`Apple Login Failed: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+    };
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -320,6 +355,14 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                                     render={(props: any) => (
                                         <button
                                             {...props}
+                                            onClick={(e) => {
+                                                if (isNative) {
+                                                    e.preventDefault();
+                                                    handleAppleLogin();
+                                                } else {
+                                                    props.onClick(e);
+                                                }
+                                            }}
                                             disabled={loading || isExternalLoading}
                                             className="flex items-center justify-center gap-2.5 w-full py-2.5 bg-black text-white rounded-full font-medium transition-all hover:bg-gray-900 border border-white/10 disabled:opacity-50"
                                         >

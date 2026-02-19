@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogIn, LogOut, User as UserIcon, ChevronDown, User, FileText, Info } from 'lucide-react';
 import { authService, User as AuthUser } from '@/lib/auth-service';
@@ -15,6 +15,7 @@ export function Header() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const location = useLocation();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const currentUser = authService.getCurrentUser();
@@ -45,11 +46,11 @@ export function Header() {
         authService.logout();
         setUser(null);
         setIsDropdownOpen(false);
-        // Force update relevant parts if needed (e.g. MyTrips page)
-        // But since we use simple routing without global context (except localStorage), 
-        // dispatch event is good.
+
+        // Reset state and move home
+        window.dispatchEvent(new Event('map-reset'));
         window.dispatchEvent(new Event('auth-change'));
-        // Redirect if on protected route? Check later.
+        navigate('/');
     };
 
     const handleLoginSuccess = (username: string) => {

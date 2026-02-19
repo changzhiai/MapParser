@@ -3,10 +3,72 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <link rel="apple-touch-icon" href="/icon.png" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+  <!-- Primary Meta Tags -->
   <title>MapParser | Google Maps Route Parser</title>
+  <meta name="title" content="MapParser | Google Maps Route Parser" />
+  <meta name="description"
+    content="Effortlessly parse Google Maps directions into CSV and KML files. Save your trips, visualize routes on OpenStreetMap, and organize your travel itineraries." />
+  <meta name="keywords"
+    content="Google maps parser, route parser, maps to csv, maps to kml, trip planner, route visualizer, travel organizer" />
+  <meta name="author" content="MapParser Team" />
+  <meta name="creator" content="Changzhi Ai" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://mapparser.travel-tracker.org/" />
+  <meta property="og:title" content="MapParser | Google Maps Route Parser" />
+  <meta property="og:description"
+    content="Extract locations from Google Maps links and export to CSV/KML. The ultimate tool for travelers and digital nomads." />
+  <meta property="og:image" content="https://mapparser.travel-tracker.org/og-image.png" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://mapparser.travel-tracker.org/" />
+  <meta property="twitter:title" content="MapParser | Google Maps Route Parser" />
+  <meta property="twitter:description" content="Convert Google Maps routes to CSV/KML and visualize them instantly." />
+  <meta property="twitter:image" content="https://mapparser.travel-tracker.org/og-image.png" />
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://mapparser.travel-tracker.org/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Preconnect to external services for performance -->
+  <link rel="preconnect" href="https://nominatim.openstreetmap.org" />
+  <link rel="preconnect" href="https://router.project-osrm.org" />
+  <link rel="preconnect" href="https://www.google-analytics.com" crossorigin />
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "MapParser",
+      "url": "https://mapparser.travel-tracker.org/",
+      "description": "Parse Google Maps directions into CSV and KML files effortlessly. Save your trips, visualize routes on OpenStreetMap, and organize your travel itineraries.",
+      "applicationCategory": "TravelApplication",
+      "genre": "Travel Tool",
+      "browserRequirements": "Requires JavaScript",
+      "softwareVersion": "1.0.0",
+      "operatingSystem": "Web, iOS, Android",
+      "author": {
+        "@type": "Organization",
+        "name": "MapParser Team"
+      },
+      "creator": {
+        "@type": "Person",
+        "name": "Changzhi Ai"
+      }
+    }
+  </script>
 </head>
 
 <body>
