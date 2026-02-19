@@ -239,25 +239,54 @@ app.post('/api/apple-login', async (req, res) => {
 
 app.post('/api/apple-callback', (req, res) => {
     const { id_token, user, state } = req.body;
-    console.log('Apple callback received:', { hasToken: !!id_token, hasUser: !!user, state });
+    console.log('[Apple Callback] Data:', { hasToken: !!id_token, hasUser: !!user, state });
 
-    // Detect platform from state
-    let baseUrl = '/';
-    if (state && (state.startsWith('platform:mobile') || state.includes('platform:mobile'))) {
-        baseUrl = 'org.traveltracker.mapparser://';
+    // Detect if we should return to the native app
+    const isMobile = state && (state.startsWith('platform:mobile') || state.includes('platform:mobile'));
+
+    // Construct the query parameters
+    let queryParams = `?apple_id_token=${encodeURIComponent(id_token || '')}`;
+    if (user) queryParams += `&apple_user=${encodeURIComponent(user)}`;
+    if (state) queryParams += `&state=${encodeURIComponent(state)}`;
+
+    if (isMobile) {
+        const appSchemeUrl = `org.traveltracker.mapparser://${queryParams}`;
+        console.log(`[Apple Callback] Mobile detected. Redirecting to app: ${appSchemeUrl}`);
+
+        // Serve a "Bridge" page to ensure the redirect works on Android Chrome
+        return res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Redirecting to App...</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                    body { font-family: -apple-system, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: white; text-align: center; }
+                    .loader { border: 3px solid #1e293b; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                    a { color: #818cf8; text-decoration: none; margin-top: 20px; padding: 10px 20px; border: 1px solid #334155; rounded: 8px; }
+                </style>
+            </head>
+            <body>
+                <div class="loader"></div>
+                <h2>Authentication Successful</h2>
+                <p>Returning you to the Map Parser app...</p>
+                <a href="${appSchemeUrl}">Click here if not redirected automatically</a>
+                <script>
+                    window.location.href = "${appSchemeUrl}";
+                    // Fallback to close window if in browser tab after a delay
+                    setTimeout(() => {
+                        console.log("If you see this, redirect might have failed. Check custom scheme.");
+                    }, 3000);
+                </script>
+            </body>
+            </html>
+        `);
     }
 
-    // Redirect back to the frontend with the token as query parameters
-    let redirectUrl = baseUrl + '?apple_id_token=' + encodeURIComponent(id_token || '');
-    if (user) {
-        redirectUrl += '&apple_user=' + encodeURIComponent(user);
-    }
-    if (state) {
-        redirectUrl += '&state=' + encodeURIComponent(state);
-    }
-
-    console.log(`[Apple Callback] Redirecting to: ${redirectUrl}`);
-    res.redirect(redirectUrl);
+    // Default web redirect
+    console.log(`[Apple Callback] Web detected. Redirecting to home: /${queryParams}`);
+    res.redirect(`/${queryParams}`);
 });
 
 app.post('/api/send-code', (req, res) => {
