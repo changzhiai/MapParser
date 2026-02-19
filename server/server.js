@@ -208,6 +208,22 @@ app.post('/api/apple-login', async (req, res) => {
     }
 });
 
+app.post('/api/apple-callback', (req, res) => {
+    const { id_token, user, state } = req.body;
+    console.log('Apple callback received:', { hasToken: !!id_token, hasUser: !!user, state });
+
+    // Redirect back to the frontend with the token as query parameters
+    let redirectUrl = '/?apple_id_token=' + encodeURIComponent(id_token || '');
+    if (user) {
+        redirectUrl += '&apple_user=' + encodeURIComponent(user);
+    }
+    if (state) {
+        redirectUrl += '&state=' + encodeURIComponent(state);
+    }
+
+    res.redirect(redirectUrl);
+});
+
 app.post('/api/send-code', (req, res) => {
     const { email } = req.body;
     db.getUserByEmail(email, (err, user) => {
