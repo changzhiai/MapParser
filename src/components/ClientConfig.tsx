@@ -19,12 +19,13 @@ export function ClientConfig() {
             // Handle Deep Links
             CapApp.addListener('appUrlOpen', data => {
                 console.log('App opened with URL:', data.url);
-                // Extract the path and query from the URL
-                // Example: org.traveltracker.mapparser://?token=... -> /?token=...
-                const url = new URL(data.url);
-                const path = url.pathname || '/';
-                const search = url.search || '';
-                navigate(path + search, { replace: true });
+                // Manually extract query params because URL constructor can be picky with custom schemes
+                const urlStr = data.url;
+                const searchIndex = urlStr.indexOf('?');
+                const search = searchIndex !== -1 ? urlStr.substring(searchIndex) : '';
+
+                // Navigate to root with the search params
+                navigate('/' + search, { replace: true });
             });
         }
     }, [navigate]);

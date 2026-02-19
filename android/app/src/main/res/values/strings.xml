@@ -3,5 +3,5 @@
     <string name="app_name">MapParser</string>
     <string name="title_activity_main">MapParser</string>
     <string name="package_name">org.traveltracker.mapparser</string>
-    <string name="custom_url_scheme">org.traveltracker.mapparser</string>
+    <string name="custom_url_scheme">mapparser</string>
 </resources>

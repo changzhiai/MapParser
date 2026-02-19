@@ -250,7 +250,7 @@ app.post('/api/apple-callback', (req, res) => {
     if (state) queryParams += `&state=${encodeURIComponent(state)}`;
 
     if (isMobile) {
-        const appSchemeUrl = `org.traveltracker.mapparser://${queryParams}`;
+        const appSchemeUrl = `mapparser://${queryParams}`;
         console.log(`[Apple Callback] Mobile detected. Redirecting to app: ${appSchemeUrl}`);
 
         // Serve a "Bridge" page to ensure the redirect works on Android Chrome
@@ -260,24 +260,26 @@ app.post('/api/apple-callback', (req, res) => {
             <head>
                 <title>Redirecting to App...</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
+                <meta http-equiv="refresh" content="0;url=${appSchemeUrl}">
                 <style>
-                    body { font-family: -apple-system, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: white; text-align: center; }
-                    .loader { border: 3px solid #1e293b; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+                    body { font-family: -apple-system, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: white; text-align: center; padding: 20px; }
+                    .loader { border: 3px solid #1e293b; border-top: 3px solid #6366f1; border-radius: 50%; width: 44px; height: 44px; animation: spin 1s linear infinite; margin-bottom: 24px; }
                     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                    a { color: #818cf8; text-decoration: none; margin-top: 20px; padding: 10px 20px; border: 1px solid #334155; rounded: 8px; }
+                    .btn { color: white; background: #4f46e5; text-decoration: none; margin-top: 30px; padding: 14px 28px; border-radius: 12px; font-weight: bold; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4); transition: transform 0.2s; }
+                    .btn:active { transform: scale(0.98); }
+                    h2 { margin-bottom: 8px; }
+                    p { color: #94a3b8; margin-bottom: 0; }
                 </style>
             </head>
             <body>
                 <div class="loader"></div>
-                <h2>Authentication Successful</h2>
+                <h2>Almost there!</h2>
                 <p>Returning you to the Map Parser app...</p>
-                <a href="${appSchemeUrl}">Click here if not redirected automatically</a>
+                <a href="${appSchemeUrl}" class="btn">Open Map Parser</a>
                 <script>
                     window.location.href = "${appSchemeUrl}";
-                    // Fallback to close window if in browser tab after a delay
-                    setTimeout(() => {
-                        console.log("If you see this, redirect might have failed. Check custom scheme.");
-                    }, 3000);
+                    // Secondary attempt after a short delay
+                    setTimeout(() => { window.location.href = "${appSchemeUrl}"; }, 500);
                 </script>
             </body>
             </html>
