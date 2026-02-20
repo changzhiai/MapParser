@@ -11,6 +11,9 @@ import { SignInModal } from '@/components/SignInModal';
 const MapView = lazy(() => import('@/components/MapView'));
 const GoogleMapView = lazy(() => import('@/components/GoogleMapView'));
 const MyTrips = lazy(() => import('@/components/MyTrips'));
+const PrivacyPolicy = lazy(() => import('@/components/PrivacyPolicy'));
+const DeleteAccountInfo = lazy(() => import('@/components/DeleteAccountInfo'));
+
 
 function MapParserContent() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -643,6 +646,18 @@ export default function App() {
                         <MyTrips />
                     </Suspense>
                 } />
+                <Route path="/privacy" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <PrivacyPolicy />
+                    </Suspense>
+                } />
+                <Route path="/delete-account" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <DeleteAccountInfo />
+                    </Suspense>
+                } />
+
+
             </Routes>
         </BrowserRouter>
     );

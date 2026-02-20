@@ -66,10 +66,13 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
                                     <span className="bg-blue-500/20 text-blue-400 p-2 rounded-lg mr-3">
                                         <Mail size={20} />
                                     </span>
-                                    Contacts
+                                    Contacts & Legal
                                 </h3>
                                 <p className="text-gray-300 leading-relaxed text-sm">
                                     Have questions, suggestions, or feedback? Feel free to reach out to us at <a href="mailto:changzhiai@gmail.com" className="text-indigo-400 hover:text-indigo-300 font-medium underline decoration-indigo-400/30 underline-offset-2">changzhiai@gmail.com</a>.
+                                </p>
+                                <p className="text-gray-300 leading-relaxed text-sm">
+                                    View our <a href="/privacy" className="text-indigo-400 hover:text-indigo-300 font-medium underline decoration-indigo-400/30 underline-offset-2">Privacy Policy</a> to understand how we protect your data.
                                 </p>
                             </div>
 
