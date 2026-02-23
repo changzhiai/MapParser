@@ -13,6 +13,13 @@ const GoogleMapView = lazy(() => import('@/components/GoogleMapView'));
 const MyTrips = lazy(() => import('@/components/MyTrips'));
 const PrivacyPolicy = lazy(() => import('@/components/PrivacyPolicy'));
 const DeleteAccountInfo = lazy(() => import('@/components/DeleteAccountInfo'));
+const LoginPage = lazy(() => import('@/components/AuthPages').then(m => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import('@/components/AuthPages').then(m => ({ default: m.RegisterPage })));
+const ResetPasswordPage = lazy(() => import('@/components/AuthPages').then(m => ({ default: m.ResetPasswordPage })));
+const AboutPage = lazy(() => import('@/components/AboutPage').then(m => ({ default: m.AboutPage })));
+const ProfilePage = lazy(() => import('@/components/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const OSMPage = lazy(() => import('@/components/MapPages').then(m => ({ default: m.OSMPage })));
+const GoogleMapsPage = lazy(() => import('@/components/MapPages').then(m => ({ default: m.GoogleMapsPage })));
 
 
 function MapParserContent() {
@@ -661,6 +668,41 @@ export default function App() {
                 <Route path="/delete-account" element={
                     <Suspense fallback={<div>Loading...</div>}>
                         <DeleteAccountInfo />
+                    </Suspense>
+                } />
+                <Route path="/login" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <LoginPage />
+                    </Suspense>
+                } />
+                <Route path="/create-account" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <RegisterPage />
+                    </Suspense>
+                } />
+                <Route path="/reset" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <ResetPasswordPage />
+                    </Suspense>
+                } />
+                <Route path="/about" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <AboutPage />
+                    </Suspense>
+                } />
+                <Route path="/profile" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <ProfilePage />
+                    </Suspense>
+                } />
+                <Route path="/map-view" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <OSMPage />
+                    </Suspense>
+                } />
+                <Route path="/google-map-view" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <GoogleMapsPage />
                     </Suspense>
                 } />
 

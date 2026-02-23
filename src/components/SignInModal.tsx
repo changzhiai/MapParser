@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { authService, API_BASE_URL } from '@/lib/auth-service';
 import AppleSignin from 'react-apple-signin-auth';
 import { Capacitor } from '@capacitor/core';
@@ -12,13 +13,36 @@ interface SignInModalProps {
     onClose: () => void;
     onLoginSuccess: (username: string) => void;
     isExternalLoading?: boolean;
+    initialMode?: Mode;
 }
 
 type Mode = 'signin' | 'register' | 'reset';
 
-export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading }: SignInModalProps) {
-    const [mode, setMode] = useState<Mode>('signin');
+export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading, initialMode }: SignInModalProps) {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [mode, setMode] = useState<Mode>(initialMode || 'signin');
     const [resetStep, setResetStep] = useState<'email' | 'verification'>('email');
+
+    // Sync mode with location if on an auth page
+    React.useEffect(() => {
+        if (location.pathname === '/login') setMode('signin');
+        else if (location.pathname === '/create-account') setMode('register');
+        else if (location.pathname === '/reset') setMode('reset');
+    }, [location.pathname]);
+
+    const handleModeSwitch = (newMode: Mode) => {
+        const isAuthPage = ['/login', '/create-account', '/reset'].includes(location.pathname);
+
+        if (isAuthPage) {
+            if (newMode === 'signin') navigate('/login');
+            else if (newMode === 'register') navigate('/create-account');
+            else if (newMode === 'reset') navigate('/reset');
+        } else {
+            setMode(newMode);
+            setError(null);
+        }
+    };
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [email, setEmail] = useState('');
@@ -403,10 +427,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                     <div className="mt-8 text-center space-y-2">
                         <button
                             type="button"
-                            onClick={() => {
-                                setMode(mode === 'signin' ? 'register' : 'signin');
-                                setError(null);
-                            }}
+                            onClick={() => handleModeSwitch(mode === 'signin' ? 'register' : 'signin')}
                             className="text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
                         >
                             {mode === 'signin' ? "Don't have an account? Create one" : "Already have an account? Sign in"}
@@ -415,9 +436,8 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setMode('reset');
+                                    handleModeSwitch('reset');
                                     setResetStep('email');
-                                    setError(null);
                                 }}
                                 className="block w-full text-sm text-gray-500 hover:text-gray-400 transition-colors"
                             >
