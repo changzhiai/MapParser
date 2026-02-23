@@ -387,7 +387,14 @@ function MapParserContent() {
                                             <div className="waypoint-index">
                                                 {i + 1}
                                             </div>
-                                            <span className="waypoint-name text-white">{wp.name}</span>
+                                            <a
+                                                href={wp.coords ? `https://www.google.com/maps/search/?api=1&query=${wp.coords.lat},${wp.coords.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wp.name)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="waypoint-name text-white hover:text-indigo-400 hover:underline transition-colors"
+                                            >
+                                                {wp.name}
+                                            </a>
                                         </motion.div>
                                     ))}
                                 </div>
