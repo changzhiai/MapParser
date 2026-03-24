@@ -2,6 +2,7 @@
   "name": "map-parser",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"cd server && npm run dev\"",

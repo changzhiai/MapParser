@@ -1,5 +1,10 @@
 # MapParser
 
+[![Live Website](https://img.shields.io/badge/Live-Website-brightgreen)](https://mapparser.travel-tracker.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+<img src="public/icon.png" width="200">
+
 **MapParser** is a modern, beautiful web and mobile app designed to bridge the gap between shared Google Maps routes and your personal Google My Maps. Use it to extract waypoints from directions links and export them for easy import into other tools. You can also parse, save, and manage your trips and waypoints for future use.
 
 ## Access

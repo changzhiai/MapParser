@@ -1,6 +1,7 @@
 {
     "name": "map-parser-server",
     "version": "1.0.0",
+    "license": "MIT",
     "description": "Backend for Map Parser",
     "main": "server.js",
     "scripts": {
