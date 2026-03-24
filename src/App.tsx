@@ -330,7 +330,7 @@ function MapParserContent({
                     </div>
 
                     <p className="subtitle">
-                        Parse your Google Map routes<br />
+                        Parse your Google Maps routes<br />
                     </p>
                 </motion.div>
 
