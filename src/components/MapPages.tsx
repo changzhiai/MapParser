@@ -1,11 +1,12 @@
 import { Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPinned, ArrowRight } from 'lucide-react';
+import { Waypoint } from '@/lib/map-parser';
 
 const MapView = lazy(() => import('./MapView'));
 const GoogleMapView = lazy(() => import('./GoogleMapView'));
 
-export function OSMPage() {
+export function OSMPage({ waypoints }: { waypoints: Waypoint[] }) {
     const navigate = useNavigate();
 
     return (
@@ -23,7 +24,7 @@ export function OSMPage() {
 
                 <div className="glass-panel p-2">
                     <Suspense fallback={<div className="h-[500px] flex items-center justify-center text-white">Loading Map...</div>}>
-                        <MapView waypoints={[]} />
+                        <MapView waypoints={waypoints} />
                     </Suspense>
                 </div>
 
@@ -40,7 +41,7 @@ export function OSMPage() {
     );
 }
 
-export function GoogleMapsPage() {
+export function GoogleMapsPage({ waypoints }: { waypoints: Waypoint[] }) {
     const navigate = useNavigate();
 
     return (
@@ -58,7 +59,7 @@ export function GoogleMapsPage() {
 
                 <div className="glass-panel p-2">
                     <Suspense fallback={<div className="h-[500px] flex items-center justify-center text-white">Loading Map...</div>}>
-                        <GoogleMapView waypoints={[]} />
+                        <GoogleMapView waypoints={waypoints} />
                     </Suspense>
                 </div>
 

@@ -6,20 +6,12 @@ export default function DeleteAccountInfo() {
     const navigate = useNavigate();
 
     return (
-        <main className="min-h-screen pt-24 pb-16 px-4">
+        <main className="min-h-screen pt-24 pb-16 px-2 md:px-4">
             <div className="container max-w-2xl mx-auto">
-                <button
-                    onClick={() => navigate('/')}
-                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8 group"
-                >
-                    <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-                    Back to App
-                </button>
-
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="glass-panel p-8 md:p-12 border-red-500/20"
+                    className="glass-panel px-4 py-8 md:p-12 mb-12 border-red-500/20"
                 >
                     <div className="flex items-center gap-4 mb-8 text-red-400">
                         <div className="p-3 bg-red-500/20 rounded-2xl">
@@ -63,11 +55,21 @@ export default function DeleteAccountInfo() {
 
                         <section className="pt-8 border-t border-white/10">
                             <p className="text-sm">
-                                If you are unable to access the app or have questions, please contact us at: <a href="mailto:changzhiai@gmail.com" className="text-indigo-400 hover:underline font-medium">changzhiai@gmail.com</a>
+                                If you are unable to access the app or have any questions, concerns, or feedback, please feel free to contact us at: <a href="mailto:changzhiai@gmail.com" className="text-indigo-400 hover:underline font-medium">changzhiai@gmail.com</a>
                             </p>
                         </section>
                     </div>
                 </motion.div>
+
+                <div className="flex justify-center mb-8">
+                    <button
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-2 text-gray-400 hover:text-white transition-all group bg-white/5 py-4 px-10 rounded-2xl border border-white/10 hover:border-white/20 hover:bg-white/10 focus:ring-2 focus:ring-red-500/50 outline-none"
+                    >
+                        <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                        <span className="font-semibold tracking-wide text-gray-400">Back to Home</span>
+                    </button>
+                </div>
             </div>
         </main>
     );

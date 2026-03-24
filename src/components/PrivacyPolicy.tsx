@@ -6,20 +6,12 @@ export default function PrivacyPolicy() {
     const navigate = useNavigate();
 
     return (
-        <main className="min-h-screen pt-24 pb-16 px-4">
+        <main className="min-h-screen pt-24 pb-16 px-2 md:px-4">
             <div className="container max-w-4xl mx-auto">
-                <button
-                    onClick={() => navigate('/')}
-                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8 group"
-                >
-                    <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-                    Back to App
-                </button>
-
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="glass-panel p-8 md:p-12"
+                    className="glass-panel px-4 py-8 md:p-12 mb-12"
                 >
                     <div className="flex items-center gap-4 mb-8">
                         <div className="p-3 bg-indigo-500/20 rounded-2xl">
@@ -91,6 +83,16 @@ export default function PrivacyPolicy() {
                         </div>
                     </div>
                 </motion.div>
+
+                <div className="flex justify-center mb-8">
+                    <button
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-2 text-gray-400 hover:text-white transition-all group bg-white/5 py-4 px-10 rounded-2xl border border-white/10 hover:border-white/20 hover:bg-white/10 focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                    >
+                        <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                        <span className="font-semibold tracking-wide">Back to Home</span>
+                    </button>
+                </div>
             </div>
         </main>
     );

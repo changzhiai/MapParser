@@ -5,13 +5,11 @@ import { LogIn, LogOut, User as UserIcon, ChevronDown, User, FileText, Info } fr
 import { authService, User as AuthUser } from '@/lib/auth-service';
 import { SignInModal } from '@/components/SignInModal';
 import { ProfileModal } from '@/components/ProfileModal';
-import { AboutModal } from '@/components/AboutModal';
 
 export function Header() {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-    const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const location = useLocation();
@@ -121,15 +119,13 @@ export function Header() {
                                                 <FileText size={16} /> My Trips
                                             </Link>
 
-                                            <button
-                                                onClick={() => {
-                                                    setIsAboutModalOpen(true);
-                                                    setIsDropdownOpen(false);
-                                                }}
+                                            <Link
+                                                to="/about"
                                                 className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2 transition-colors"
+                                                onClick={() => setIsDropdownOpen(false)}
                                             >
                                                 <Info size={16} /> About
-                                            </button>
+                                            </Link>
 
                                             <div className="border-t border-white/5 my-1"></div>
 
@@ -166,10 +162,6 @@ export function Header() {
                 onClose={() => setIsProfileModalOpen(false)}
                 user={user}
                 onUpdateUser={handleUpdateUser}
-            />
-            <AboutModal
-                isOpen={isAboutModalOpen}
-                onClose={() => setIsAboutModalOpen(false)}
             />
             {/* Spacer for fixed header */}
             <div className="h-16 md:h-20 mt-safe"></div>

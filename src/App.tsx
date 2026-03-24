@@ -1,6 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useSearchParams, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
+import { Footer } from './components/Footer';
 import { ClientConfig } from './components/ClientConfig';
 import { generateCSV, generateKML, parseMapUrl, Waypoint, cleanWaypointName, getLocationWithAPI, getCurrentYear } from '@/lib/map-parser';
 import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map as MapIcon, Bookmark, Plus, Trash2, StickyNote, Route as RouteIcon } from 'lucide-react';
@@ -18,18 +19,36 @@ const RegisterPage = lazy(() => import('@/components/AuthPages').then(m => ({ de
 const ResetPasswordPage = lazy(() => import('@/components/AuthPages').then(m => ({ default: m.ResetPasswordPage })));
 const AboutPage = lazy(() => import('@/components/AboutPage').then(m => ({ default: m.AboutPage })));
 const ProfilePage = lazy(() => import('@/components/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const DownloadApp = lazy(() => import('@/components/DownloadApp').then(m => ({ default: m.DownloadApp })));
 const OSMPage = lazy(() => import('@/components/MapPages').then(m => ({ default: m.OSMPage })));
 const GoogleMapsPage = lazy(() => import('@/components/MapPages').then(m => ({ default: m.GoogleMapsPage })));
 
 
-function MapParserContent() {
+function MapParserContent({ 
+    waypoints, 
+    setWaypoints, 
+    url, 
+    setUrl, 
+    analyzed, 
+    setAnalyzed, 
+    mapProvider, 
+    setMapProvider 
+}: { 
+    waypoints: Waypoint[], 
+    setWaypoints: (w: Waypoint[]) => void,
+    url: string,
+    setUrl: (s: string) => void,
+    analyzed: boolean,
+    setAnalyzed: (b: boolean) => void,
+    mapProvider: 'osm' | 'google',
+    setMapProvider: (p: 'osm' | 'google') => void
+}) {
     const [searchParams, setSearchParams] = useSearchParams();
-    const [url, setUrl] = useState('');
+
+
     const [loading, setLoading] = useState(false);
-    const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
     const [error, setError] = useState('');
-    const [analyzed, setAnalyzed] = useState(false);
-    const [mapProvider, setMapProvider] = useState<'osm' | 'google'>('osm');
+
     const [googleMapMode, setGoogleMapMode] = useState<'embed' | 'interactive'>('interactive');
 
     // Auth & Trips State
@@ -311,7 +330,7 @@ function MapParserContent() {
                     </div>
 
                     <p className="subtitle">
-                        Parse your Google Maps routes<br />
+                        Parse your Map routes<br />
                     </p>
                 </motion.div>
 
@@ -644,15 +663,39 @@ function MapParserContent() {
     );
 }
 
+function ScrollToTop() {
+    const { pathname } = useLocation();
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [pathname]);
+    return null;
+}
+
 export default function App() {
+    const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
+    const [url, setUrl] = useState('');
+    const [analyzed, setAnalyzed] = useState(false);
+    const [mapProvider, setMapProvider] = useState<'osm' | 'google'>('osm');
+
+
     return (
         <BrowserRouter>
+            <ScrollToTop />
             <ClientConfig />
             <Header />
             <Routes>
                 <Route path="/" element={
                     <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-white">Loading...</div>}>
-                        <MapParserContent />
+                        <MapParserContent 
+                            waypoints={waypoints} 
+                            setWaypoints={setWaypoints}
+                            url={url}
+                            setUrl={setUrl}
+                            analyzed={analyzed}
+                            setAnalyzed={setAnalyzed}
+                            mapProvider={mapProvider}
+                            setMapProvider={setMapProvider}
+                        />
                     </Suspense>
                 } />
                 <Route path="/my-trips" element={
@@ -695,19 +738,25 @@ export default function App() {
                         <ProfilePage />
                     </Suspense>
                 } />
+                <Route path="/download" element={
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <DownloadApp />
+                    </Suspense>
+                } />
                 <Route path="/map-view" element={
                     <Suspense fallback={<div>Loading...</div>}>
-                        <OSMPage />
+                        <OSMPage waypoints={waypoints} />
                     </Suspense>
                 } />
                 <Route path="/google-map-view" element={
                     <Suspense fallback={<div>Loading...</div>}>
-                        <GoogleMapsPage />
+                        <GoogleMapsPage waypoints={waypoints} />
                     </Suspense>
                 } />
 
 
             </Routes>
+            <Footer />
         </BrowserRouter>
     );
 }
