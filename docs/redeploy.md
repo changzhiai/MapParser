@@ -55,3 +55,4 @@ If you have updated the frontend code, remember to notify mobile users that a ne
 npm run build && npx cap sync
 ```
 Refer to [ios_development.md](./ios_development.md) for detailed mobile instructions.
+

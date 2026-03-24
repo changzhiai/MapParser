@@ -24,17 +24,17 @@ const OSMPage = lazy(() => import('@/components/MapPages').then(m => ({ default:
 const GoogleMapsPage = lazy(() => import('@/components/MapPages').then(m => ({ default: m.GoogleMapsPage })));
 
 
-function MapParserContent({ 
-    waypoints, 
-    setWaypoints, 
-    url, 
-    setUrl, 
-    analyzed, 
-    setAnalyzed, 
-    mapProvider, 
-    setMapProvider 
-}: { 
-    waypoints: Waypoint[], 
+function MapParserContent({
+    waypoints,
+    setWaypoints,
+    url,
+    setUrl,
+    analyzed,
+    setAnalyzed,
+    mapProvider,
+    setMapProvider
+}: {
+    waypoints: Waypoint[],
     setWaypoints: (w: Waypoint[]) => void,
     url: string,
     setUrl: (s: string) => void,
@@ -330,7 +330,7 @@ function MapParserContent({
                     </div>
 
                     <p className="subtitle">
-                        Parse your Map routes<br />
+                        Parse your Google Map routes<br />
                     </p>
                 </motion.div>
 
@@ -686,8 +686,8 @@ export default function App() {
             <Routes>
                 <Route path="/" element={
                     <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-white">Loading...</div>}>
-                        <MapParserContent 
-                            waypoints={waypoints} 
+                        <MapParserContent
+                            waypoints={waypoints}
                             setWaypoints={setWaypoints}
                             url={url}
                             setUrl={setUrl}
