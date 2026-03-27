@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, useSearchParams, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { ClientConfig } from './components/ClientConfig';
@@ -7,8 +7,6 @@ import { generateCSV, generateKML, parseMapUrl, Waypoint, cleanWaypointName, get
 import { MapPinned, ArrowRight, Loader2, CheckCircle, Link as LinkIcon, AlertCircle, FileText, Globe, Map as MapIcon, Bookmark, Plus, Trash2, StickyNote, Route as RouteIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService, User, Trip, API_BASE_URL } from '@/lib/auth-service';
-import { SignInModal } from '@/components/SignInModal';
-
 const MapView = lazy(() => import('@/components/MapView'));
 const GoogleMapView = lazy(() => import('@/components/GoogleMapView'));
 const MyTrips = lazy(() => import('@/components/MyTrips'));
@@ -44,6 +42,7 @@ function MapParserContent({
     setMapProvider: (p: 'osm' | 'google') => void
 }) {
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
 
 
     const [loading, setLoading] = useState(false);
@@ -52,7 +51,6 @@ function MapParserContent({
     const [googleMapMode, setGoogleMapMode] = useState<'embed' | 'interactive'>('interactive');
 
     // Auth & Trips State
-    const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
     const [user, setUser] = useState<User | null>(null);
     const [trips, setTrips] = useState<Trip[]>([]);
     const [isSavingTrip, setIsSavingTrip] = useState(false);
@@ -247,7 +245,7 @@ function MapParserContent({
 
     const handleSaveTrip = async () => {
         if (!user) {
-            setIsSignInModalOpen(true);
+            navigate('/login');
             return;
         }
 
@@ -641,23 +639,13 @@ function MapParserContent({
                             ))}
                         </div>
                         <div className="flex justify-center pt-2">
-                            <a href="/my-trips" onClick={(e) => { e.preventDefault(); window.location.href = '/my-trips'; }} className="text-indigo-300 hover:text-white text-sm font-medium flex items-center gap-1 transition-colors bg-white/5 px-6 py-2 rounded-full border border-white/10 hover:bg-white/10">
+                            <button onClick={() => navigate('/my-trips')} className="text-indigo-300 hover:text-white text-sm font-medium flex items-center gap-1 transition-colors bg-white/5 px-6 py-2 rounded-full border border-white/10 hover:bg-white/10">
                                 View All <ArrowRight size={16} />
-                            </a>
+                            </button>
                         </div>
                     </div>
                 )}
 
-                <SignInModal
-                    isOpen={isSignInModalOpen}
-                    onClose={() => setIsSignInModalOpen(false)}
-                    onLoginSuccess={(username) => {
-                        const currentUser = authService.getCurrentUser();
-                        setUser(currentUser);
-                        if (currentUser) fetchTrips(currentUser.id!);
-                        window.dispatchEvent(new Event('auth-change'));
-                    }}
-                />
             </div>
         </main>
     );

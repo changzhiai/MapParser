@@ -3,13 +3,9 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogIn, LogOut, User as UserIcon, ChevronDown, User, FileText, Info } from 'lucide-react';
 import { authService, User as AuthUser } from '@/lib/auth-service';
-import { SignInModal } from '@/components/SignInModal';
-import { ProfileModal } from '@/components/ProfileModal';
 
 export function Header() {
     const [user, setUser] = useState<AuthUser | null>(null);
-    const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
-    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const location = useLocation();
@@ -103,7 +99,7 @@ export function Header() {
 
                                             <button
                                                 onClick={() => {
-                                                    setIsProfileModalOpen(true);
+                                                    navigate('/profile');
                                                     setIsDropdownOpen(false);
                                                 }}
                                                 className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2 transition-colors"
@@ -141,7 +137,7 @@ export function Header() {
                             </div>
                         ) : (
                             <button
-                                onClick={() => setIsSignInModalOpen(true)}
+                                onClick={() => navigate('/login')}
                                 className="flex items-center gap-2.5 py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full text-base font-bold shadow-lg shadow-indigo-500/20 transition-all"
                             >
                                 <LogIn size={18} />
@@ -152,17 +148,6 @@ export function Header() {
                 </div>
             </header>
 
-            <SignInModal
-                isOpen={isSignInModalOpen}
-                onClose={() => setIsSignInModalOpen(false)}
-                onLoginSuccess={handleLoginSuccess}
-            />
-            <ProfileModal
-                isOpen={isProfileModalOpen}
-                onClose={() => setIsProfileModalOpen(false)}
-                user={user}
-                onUpdateUser={handleUpdateUser}
-            />
             {/* Spacer for fixed header */}
             <div className="h-16 md:h-20 mt-safe"></div>
         </>
