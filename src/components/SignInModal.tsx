@@ -32,16 +32,12 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
     }, [location.pathname]);
 
     const handleModeSwitch = (newMode: Mode) => {
-        const isAuthPage = ['/login', '/create-account', '/reset'].includes(location.pathname);
-
-        if (isAuthPage) {
-            if (newMode === 'signin') navigate('/login');
-            else if (newMode === 'register') navigate('/create-account');
-            else if (newMode === 'reset') navigate('/reset');
-        } else {
-            setMode(newMode);
-            setError(null);
-        }
+        if (newMode === 'signin') navigate('/login');
+        else if (newMode === 'register') navigate('/create-account');
+        else if (newMode === 'reset') navigate('/reset');
+        
+        setMode(newMode);
+        setError(null);
     };
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -49,6 +45,13 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
     const [verificationCode, setVerificationCode] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    const handleSuccess = (username: string) => {
+        window.dispatchEvent(new Event('auth-change'));
+        onLoginSuccess(username);
+        onClose();
+        resetForm();
+    };
 
     const resetForm = () => {
         setUsername('');
@@ -68,9 +71,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                 const result = await authService.googleLogin(tokenResponse.access_token, true);
                 setLoading(false);
                 if (result.user) {
-                    onLoginSuccess(result.user.username);
-                    onClose();
-                    resetForm();
+                    handleSuccess(result.user.username);
                 } else {
                     console.error('Google verification failed on server:', result.error);
                     setError(result.error || 'Google login failed');
@@ -119,9 +120,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                     setLoading(false);
 
                     if (result.user) {
-                        onLoginSuccess(result.user.username);
-                        onClose();
-                        resetForm();
+                        handleSuccess(result.user.username);
                     } else {
                         console.error('Google verification failed on server:', result.error, (result as any).details);
                         setError(result.error || 'Google login failed');
@@ -173,9 +172,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                     setLoading(false);
 
                     if (result.user) {
-                        onLoginSuccess(result.user.username);
-                        onClose();
-                        resetForm();
+                        handleSuccess(result.user.username);
                     } else {
                         setError(result.error || 'Apple login failed');
                     }
@@ -199,18 +196,14 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
             if (mode === 'signin') {
                 const result = await authService.login(username, password);
                 if (result.user) {
-                    onLoginSuccess(result.user.username);
-                    onClose();
-                    resetForm();
+                    handleSuccess(result.user.username);
                 } else {
                     setError(result.error || 'Invalid credentials');
                 }
             } else if (mode === 'register') {
                 const result = await authService.register(username, password, email);
                 if (result.success) {
-                    onLoginSuccess(username);
-                    onClose();
-                    resetForm();
+                    handleSuccess(username);
                 } else {
                     setError(result.error || 'Registration failed');
                 }
@@ -388,9 +381,7 @@ export function SignInModal({ isOpen, onClose, onLoginSuccess, isExternalLoading
                                             const result = await authService.appleLogin(response.authorization.id_token, response.user);
                                             setLoading(false);
                                             if (result.user) {
-                                                onLoginSuccess(result.user.username);
-                                                onClose();
-                                                resetForm();
+                                                handleSuccess(result.user.username);
                                             } else {
                                                 setError(result.error || 'Apple login failed');
                                             }
