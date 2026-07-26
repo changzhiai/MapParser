@@ -1,5 +1,35 @@
+# MapParser - robots.txt
+# Welcome all web crawlers and AI/LLM crawlers
+
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /profile
+Disallow: /reset
+
+# AI / LLM Crawlers - explicitly welcomed
+User-agent: GPTBot
+Allow: /
+Crawl-delay: 2
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: CCBot
+Allow: /
+Crawl-delay: 5
+
+User-agent: Bytespider
+Allow: /
+Crawl-delay: 5
+
+User-agent: Applebot-Extended
+Allow: /
+
+# LLMs.txt for AI discovery
+# See: https://mapparser.travel-tracker.org/llms.txt
 
 Sitemap: https://mapparser.travel-tracker.org/sitemap.xml

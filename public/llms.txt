@@ -1,0 +1,81 @@
+# MapParser
+
+> MapParser is a free web and mobile app that parses Google Maps direction links to extract waypoints, visualize routes on interactive maps, and export data to CSV (for Google My Maps) or KML (for Google Earth). Available on iOS, Android, and the web.
+
+## Pages
+
+- [Home](https://mapparser.travel-tracker.org/): Paste a Google Maps link to extract all waypoints and route details instantly.
+- [My Trips](https://mapparser.travel-tracker.org/my-trips): Save, manage, and revisit your parsed routes and trip itineraries.
+- [Download App](https://mapparser.travel-tracker.org/download): Get MapParser on iOS (App Store) or Android (Google Play).
+- [About](https://mapparser.travel-tracker.org/about): Learn about MapParser, its features, and the team behind it.
+- [Map View](https://mapparser.travel-tracker.org/map-view): Interactive OpenStreetMap route visualization with waypoint markers.
+- [Google Map View](https://mapparser.travel-tracker.org/google-map-view): View your parsed route on Google Maps with full interactivity.
+- [Privacy Policy](https://mapparser.travel-tracker.org/privacy): How MapParser handles your data.
+- [Delete Account](https://mapparser.travel-tracker.org/delete-account): Instructions for deleting your MapParser account and data.
+
+## Key Features
+
+- Parse any Google Maps direction link (including shortened goo.gl links) to extract all waypoints
+- Export routes to CSV format optimized for Google My Maps import
+- Export routes to KML format for Google Earth and GIS applications
+- Visualize routes on interactive OpenStreetMap with Leaflet
+- Visualize routes on Google Maps with full interactivity
+- Save and manage multiple trips with user accounts
+- Google Sign-In and Apple Sign-In for quick account creation
+- Privacy-first: route parsing happens in-browser with no data stored on servers
+- Dark glassmorphism UI with smooth Framer Motion animations
+- Responsive design works on desktop, tablet, and mobile
+- Native iOS and Android apps via Capacitor
+- Free to use with no waypoint limits
+
+## External Links
+
+- Website: https://mapparser.travel-tracker.org/
+- iOS App: https://apps.apple.com/us/app/map-parser-route-export/id6759354228
+- Android App: https://play.google.com/store/apps/details?id=org.traveltracker.mapparser
+- GitHub: https://github.com/changzhiai/MapParser
+- Contact: mapparser@travel-tracker.org
+
+## FAQ
+
+### How do I parse a Google Maps route?
+Paste any Google Maps direction link (e.g., https://maps.app.goo.gl/...) into MapParser's input field. The app will automatically extract all waypoints, addresses, and coordinates from your route.
+
+### What formats can I export my route to?
+MapParser supports exporting to CSV (comma-separated values) optimized for Google My Maps import, and KML (Keyhole Markup Language) for Google Earth, QGIS, and other GIS applications.
+
+### How do I import my parsed route into Google My Maps?
+After parsing your route, click "Export CSV". Then go to Google My Maps (mymaps.google.com), create a new map, click "Import", and upload the CSV file. Your waypoints will appear as markers on the map.
+
+### Does MapParser work with shortened Google Maps links?
+Yes. MapParser handles both full Google Maps URLs and shortened links (maps.app.goo.gl/...). Just paste the link and the app will resolve and parse it automatically.
+
+### Is MapParser free to use?
+Yes, MapParser is completely free with no limits on the number of waypoints or routes you can parse. There are no premium tiers or hidden costs.
+
+### Does MapParser store my route data?
+MapParser processes routes in your browser. If you create an account and save trips, those are stored securely. You can delete your account and all associated data at any time.
+
+### Can I visualize my route on a map before exporting?
+Yes. After parsing, MapParser shows your route on an interactive OpenStreetMap or Google Maps view with all waypoints marked. You can pan, zoom, and click waypoints for details.
+
+### Does MapParser work on mobile devices?
+Yes. MapParser is available as a native app on iOS (App Store) and Android (Google Play), and the web version is fully responsive for mobile browsers.
+
+### What is the difference between CSV and KML export?
+CSV export is optimized for importing into Google My Maps — it includes waypoint names, addresses, and coordinates in a format My Maps understands. KML export is for Google Earth and professional GIS tools, and includes the full route geometry.
+
+### Can I save my parsed routes for later?
+Yes. Create a free account with Google or Apple Sign-In, and you can save unlimited trips. Access them anytime from the "My Trips" page.
+
+### Does MapParser work with routes that have many stops?
+Yes. Unlike Google Maps which limits directions to 10 waypoints, MapParser can extract and display routes with any number of stops from a shared link.
+
+### Can I use MapParser for planning delivery routes or road trips?
+Absolutely. MapParser is great for extracting waypoints from planned routes — whether for delivery optimization, road trip planning, travel blogging, or creating custom maps for group trips.
+
+### What map providers does MapParser use for visualization?
+MapParser offers two visualization options: OpenStreetMap (via Leaflet) for a free, open-source map view, and Google Maps for the familiar Google experience with satellite imagery and Street View.
+
+### How is MapParser different from just using Google Maps?
+Google Maps is for navigation. MapParser is for data extraction and route management — it lets you export your routes as files, import them into other tools like Google My Maps or Google Earth, save them as trips, and visualize them on different map providers.

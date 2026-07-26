@@ -52,7 +52,7 @@ export function AboutPage() {
                                 Contacts & Legal
                             </h2>
                             <p>
-                                Have any questions, suggestions, or feedback? Feel free to reach out to us at <a href="mailto:changzhiai@gmail.com" className="text-indigo-400 hover:text-indigo-300 font-medium underline decoration-indigo-400/30 underline-offset-2">changzhiai@gmail.com</a>.
+                                Have any questions, suggestions, or feedback? Feel free to reach out to us at <a href="mailto:mapparser@travel-tracker.org" className="text-indigo-400 hover:text-indigo-300 font-medium underline decoration-indigo-400/30 underline-offset-2">mapparser@travel-tracker.org</a>.
                             </p>
                             <p>
                                 View our <a href="/privacy" className="text-indigo-400 hover:text-indigo-300 font-medium underline decoration-indigo-400/30 underline-offset-2">Privacy Policy</a> to understand how we protect your data.

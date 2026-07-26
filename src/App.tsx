@@ -651,10 +651,31 @@ function MapParserContent({
     );
 }
 
+const PAGE_META: Record<string, { title: string; description: string }> = {
+    '/': { title: 'MapParser | Parse Google Maps Routes to CSV & KML', description: 'Free tool to parse Google Maps direction links and extract waypoints. Export routes to CSV for Google My Maps or KML for Google Earth.' },
+    '/my-trips': { title: 'My Trips | MapParser', description: 'View and manage your saved routes and trip itineraries parsed from Google Maps.' },
+    '/download': { title: 'Download MapParser App | iOS & Android', description: 'Get MapParser on iPhone and Android. Parse Google Maps routes, export to CSV/KML, and visualize trips on the go.' },
+    '/about': { title: 'About MapParser | Google Maps Route Parser', description: 'Learn about MapParser — the free tool to parse Google Maps directions into CSV and KML files for Google My Maps and Google Earth.' },
+    '/privacy': { title: 'Privacy Policy | MapParser', description: 'How MapParser handles your data. Route parsing happens in your browser with no data stored on servers.' },
+    '/login': { title: 'Sign In | MapParser', description: 'Sign in to MapParser to save and manage your parsed routes and trips.' },
+    '/create-account': { title: 'Create Account | MapParser', description: 'Create a free MapParser account to save unlimited trips and access them across devices.' },
+    '/map-view': { title: 'Route Map View | MapParser', description: 'Interactive OpenStreetMap visualization of your parsed Google Maps route with all waypoints.' },
+    '/google-map-view': { title: 'Google Maps View | MapParser', description: 'View your parsed route on Google Maps with full interactivity and satellite imagery.' },
+    '/delete-account': { title: 'Delete Account | MapParser', description: 'Instructions for deleting your MapParser account and all associated data.' },
+    '/profile': { title: 'Profile | MapParser', description: 'Manage your MapParser account settings and preferences.' },
+    '/reset': { title: 'Reset Password | MapParser', description: 'Reset your MapParser account password.' },
+};
+
 function ScrollToTop() {
     const { pathname } = useLocation();
     useEffect(() => {
         window.scrollTo(0, 0);
+        const meta = PAGE_META[pathname];
+        if (meta) {
+            document.title = meta.title;
+            const descTag = document.querySelector('meta[name="description"]');
+            if (descTag) descTag.setAttribute('content', meta.description);
+        }
     }, [pathname]);
     return null;
 }

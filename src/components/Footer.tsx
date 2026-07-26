@@ -55,7 +55,7 @@ export function Footer() {
                             <a href="https://github.com/changzhiai/MapParser" className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all">
                                 <Github size={18} />
                             </a>
-                            <a href="mailto:changzhiai@gmail.com" className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                            <a href="mailto:mapparser@travel-tracker.org" className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all">
                                 <Mail size={18} />
                             </a>
                         </div>
