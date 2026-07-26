@@ -55,7 +55,7 @@ export default function DeleteAccountInfo() {
 
                         <section className="pt-8 border-t border-white/10">
                             <p className="text-sm">
-                                If you are unable to access the app or have any questions, concerns, or feedback, please feel free to contact us at: <a href="mailto:changzhiai@gmail.com" className="text-indigo-400 hover:underline font-medium">changzhiai@gmail.com</a>
+                                If you are unable to access the app or have any questions, concerns, or feedback, please feel free to contact us at: <a href="mailto:mapparser@travel-tracker.org" className="text-indigo-400 hover:underline font-medium">mapparser@travel-tracker.org</a>
                             </p>
                         </section>
                     </div>

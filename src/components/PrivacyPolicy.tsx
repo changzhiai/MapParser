@@ -67,7 +67,7 @@ export default function PrivacyPolicy() {
                             <h2 className="text-xl font-semibold text-white mb-4">5. Data Deletion</h2>
                             <p>
                                 You can delete any of your saved trips at any time within the app. For detailed instructions on how to permanently delete your account and all associated data, please visit our <a href="/delete-account" className="text-indigo-400 hover:underline">Account Deletion page</a>.
-                                Alternatively, you can contact us at <a href="mailto:changzhiai@gmail.com" className="text-indigo-600 hover:underline">changzhiai@gmail.com</a>.
+                                Alternatively, you can contact us at <a href="mailto:mapparser@travel-tracker.org" className="text-indigo-600 hover:underline">mapparser@travel-tracker.org</a>.
                             </p>
                         </section>
 
