@@ -10,28 +10,32 @@
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
   <!-- Primary Meta Tags -->
-  <title>MapParser | Google Maps Route Parser</title>
-  <meta name="title" content="MapParser | Google Maps Route Parser" />
+  <title>MapParser | Parse Google Maps Routes to CSV & KML</title>
+  <meta name="title" content="MapParser | Parse Google Maps Routes to CSV & KML" />
   <meta name="description"
-    content="Effortlessly parse Google Maps directions into CSV and KML files. Save your trips, visualize routes on OpenStreetMap or Google Maps, and organize your travel itineraries." />
+    content="Free tool to parse Google Maps direction links and extract waypoints. Export routes to CSV for Google My Maps or KML for Google Earth. Visualize trips on OpenStreetMap or Google Maps. Available on iOS, Android, and web." />
   <meta name="keywords"
-    content="Google maps parser, route parser, maps to csv, maps to kml, trip planner, route visualizer, travel organizer" />
-  <meta name="author" content="MapParser Team" />
+    content="google maps parser, parse google maps link, extract waypoints from google maps, google maps to csv, google maps to kml, google maps route export, export google maps directions, google maps waypoint extractor, convert google maps route, google my maps import, google earth kml, route visualizer, trip planner, travel route organizer, map data extractor, google maps link parser, goo.gl maps parser, parse shared google maps link, extract stops from google maps" />
+  <meta name="author" content="MapParser by Changzhi Ai" />
   <meta name="creator" content="Changzhi Ai" />
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://mapparser.travel-tracker.org/" />
-  <meta property="og:title" content="MapParser | Google Maps Route Parser" />
+  <meta property="og:site_name" content="MapParser" />
+  <meta property="og:title" content="MapParser | Parse Google Maps Routes to CSV & KML" />
   <meta property="og:description"
-    content="Extract locations from Google Maps links and export to CSV/KML. The ultimate tool for travelers and digital nomads." />
+    content="Free tool to parse Google Maps direction links and extract all waypoints. Export to CSV for Google My Maps or KML for Google Earth. Available on iOS and Android." />
   <meta property="og:image" content="https://mapparser.travel-tracker.org/og-image.png" />
+  <meta property="og:image:width" content="1024" />
+  <meta property="og:image:height" content="1024" />
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image" />
   <meta property="twitter:url" content="https://mapparser.travel-tracker.org/" />
-  <meta property="twitter:title" content="MapParser | Google Maps Route Parser" />
-  <meta property="twitter:description" content="Convert Google Maps routes to CSV/KML and visualize them instantly." />
+  <meta property="twitter:title" content="MapParser | Parse Google Maps Routes to CSV & KML" />
+  <meta property="twitter:description"
+    content="Extract waypoints from any Google Maps link. Export to CSV/KML, visualize routes, and save trips. Free on web, iOS, and Android." />
   <meta property="twitter:image" content="https://mapparser.travel-tracker.org/og-image.png" />
 
   <!-- Canonical -->
@@ -41,25 +45,36 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
+  <!-- Smart App Banner (iOS Safari) -->
+  <meta name="apple-itunes-app" content="app-id=6759354228" />
+
+  <!-- AI / LLM Discovery -->
+  <link rel="llms-txt" href="/llms.txt" />
+
   <!-- Preconnect to external services for performance -->
   <link rel="preconnect" href="https://nominatim.openstreetmap.org" />
   <link rel="preconnect" href="https://router.project-osrm.org" />
   <link rel="preconnect" href="https://www.google-analytics.com" crossorigin />
 
-  <!-- Structured Data (JSON-LD) -->
+  <!-- Structured Data: WebApplication -->
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "MapParser",
       "url": "https://mapparser.travel-tracker.org/",
-      "description": "Parse Google Maps directions into CSV and KML files effortlessly. Save your trips, visualize routes on OpenStreetMap or Google Maps, and organize your travel itineraries.",
+      "description": "Parse Google Maps direction links to extract waypoints. Export routes to CSV for Google My Maps or KML for Google Earth. Visualize trips on interactive maps.",
       "applicationCategory": "TravelApplication",
       "genre": "Travel Tool",
       "downloadUrl": "https://mapparser.travel-tracker.org/download",
       "browserRequirements": "Requires JavaScript",
       "softwareVersion": "1.0.3",
       "operatingSystem": "Web, iOS, Android",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
       "author": {
         "@type": "Organization",
         "name": "MapParser Team"
@@ -70,26 +85,228 @@
       }
     }
   </script>
+
+  <!-- Structured Data: SoftwareApplication (App Store listings) -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "MapParser - Route Export",
+      "operatingSystem": "iOS, Android",
+      "applicationCategory": "TravelApplication",
+      "description": "Parse Google Maps direction links to extract waypoints. Export routes to CSV or KML. Visualize trips on interactive maps.",
+      "downloadUrl": "https://mapparser.travel-tracker.org/download",
+      "installUrl": "https://apps.apple.com/us/app/map-parser-route-export/id6759354228",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "5",
+        "ratingCount": "1",
+        "bestRating": "5",
+        "worstRating": "1"
+      }
+    }
+  </script>
+
+  <!-- Structured Data: FAQPage -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I parse a Google Maps route?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Paste any Google Maps direction link (including shortened goo.gl links) into MapParser's input field. The app automatically extracts all waypoints, addresses, and coordinates from your route."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What formats can I export my route to?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "MapParser exports to CSV (optimized for Google My Maps import) and KML (for Google Earth, QGIS, and other GIS tools)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I import a parsed route into Google My Maps?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "After parsing your route, click Export CSV. Then go to Google My Maps (mymaps.google.com), create a new map, click Import, and upload the CSV file. Your waypoints will appear as markers."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is MapParser free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, MapParser is completely free with no limits on waypoints or routes. There are no premium tiers or hidden costs."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does MapParser work with shortened Google Maps links?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. MapParser handles both full Google Maps URLs and shortened links (maps.app.goo.gl/...). Just paste the link and the app resolves and parses it automatically."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does MapParser store my route data?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "MapParser processes routes in your browser. If you create an account and save trips, those are stored securely. You can delete your account and all data at any time."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I visualize my route on a map before exporting?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. After parsing, MapParser shows your route on an interactive OpenStreetMap or Google Maps view with all waypoints marked. You can pan, zoom, and click waypoints for details."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does MapParser work on mobile devices?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. MapParser is available as a native app on iOS (App Store) and Android (Google Play), and the web version is fully responsive for mobile browsers."
+          }
+        }
+      ]
+    }
+  </script>
+
+  <!-- Structured Data: HowTo -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "How to Parse a Google Maps Route and Export to CSV or KML",
+      "description": "Extract waypoints from any Google Maps direction link and export them to CSV for Google My Maps or KML for Google Earth.",
+      "totalTime": "PT1M",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "name": "Copy your Google Maps link",
+          "text": "Open Google Maps, get directions for your route, then copy the URL from your browser's address bar or use the Share button to get a shortened link."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "name": "Paste the link into MapParser",
+          "text": "Go to mapparser.travel-tracker.org and paste your Google Maps link into the input field. Click Parse to extract all waypoints."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 3,
+          "name": "Visualize your route",
+          "text": "Review the extracted waypoints and view your route on the interactive OpenStreetMap or Google Maps visualization."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 4,
+          "name": "Export your route",
+          "text": "Click Export CSV to download a file ready for Google My Maps import, or Export KML for Google Earth and GIS applications."
+        }
+      ]
+    }
+  </script>
+
+  <!-- Structured Data: BreadcrumbList -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://mapparser.travel-tracker.org/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Download App",
+          "item": "https://mapparser.travel-tracker.org/download"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "About",
+          "item": "https://mapparser.travel-tracker.org/about"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Privacy Policy",
+          "item": "https://mapparser.travel-tracker.org/privacy"
+        }
+      ]
+    }
+  </script>
 </head>
 
 <body>
   <div id="root"></div>
-  <!-- SEO: Link list for crawlers to discover SPA routes -->
-  <nav
-    style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">
+
+  <!-- Noscript fallback for search engine crawlers -->
+  <noscript>
+    <div style="max-width: 800px; margin: 0 auto; padding: 2rem; font-family: system-ui, sans-serif;">
+      <h1>MapParser - Parse Google Maps Routes to CSV & KML</h1>
+      <p>MapParser is a free tool that parses Google Maps direction links to extract waypoints, visualize routes on interactive maps, and export data for use in other applications.</p>
+
+      <h2>Key Features</h2>
+      <ul>
+        <li>Parse any Google Maps direction link (including shortened goo.gl links)</li>
+        <li>Export routes to CSV optimized for Google My Maps import</li>
+        <li>Export routes to KML for Google Earth and GIS applications</li>
+        <li>Visualize routes on OpenStreetMap or Google Maps</li>
+        <li>Save and manage multiple trips with a free account</li>
+        <li>Available on iOS, Android, and web</li>
+      </ul>
+
+      <h2>How It Works</h2>
+      <ol>
+        <li>Copy a Google Maps direction link</li>
+        <li>Paste it into MapParser</li>
+        <li>View extracted waypoints and route visualization</li>
+        <li>Export to CSV or KML</li>
+      </ol>
+
+      <h2>Download the App</h2>
+      <p>
+        <a href="https://apps.apple.com/us/app/map-parser-route-export/id6759354228">Download on the App Store</a> |
+        <a href="https://play.google.com/store/apps/details?id=org.traveltracker.mapparser">Get it on Google Play</a>
+      </p>
+    </div>
+  </noscript>
+
+  <!-- SEO: Hidden navigation for crawlers to discover SPA routes -->
+  <nav style="display:none;" aria-hidden="true">
     <a href="/">MapParser Home - Google Maps Route Parser</a>
     <a href="/my-trips">My Saved Trips & Travel Routes</a>
-    <a href="/login">Sign In - Access Your MapParser Account</a>
-    <a href="/create-account">Create Account - Join MapParser</a>
-    <a href="/reset">Reset Password - Recover Your Account</a>
-    <a href="/profile">User Profile - Manage Your Settings</a>
-    <a href="/map-view">Interactive Route Map - OpenStreetMap Viewer</a>
-    <a href="/google-map-view">Google Maps Route Viewer</a>
     <a href="/download">Download MapParser Mobile App - iOS and Android</a>
     <a href="/about">About MapParser - Learn More</a>
+    <a href="/map-view">Interactive Route Map - OpenStreetMap Viewer</a>
+    <a href="/google-map-view">Google Maps Route Viewer</a>
     <a href="/privacy">Privacy Policy</a>
     <a href="/delete-account">Delete Account Information</a>
+    <a href="https://apps.apple.com/us/app/map-parser-route-export/id6759354228">MapParser on App Store</a>
+    <a href="https://play.google.com/store/apps/details?id=org.traveltracker.mapparser">MapParser on Google Play</a>
   </nav>
+
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
