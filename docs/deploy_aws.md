@@ -48,6 +48,8 @@ cd ~/apps
 git clone https://github.com/changzhiai/MapParser.git
 cd MapParser
 npm install
+cd server
+npm install
 ```
 
 ### Configure Environment Variables
